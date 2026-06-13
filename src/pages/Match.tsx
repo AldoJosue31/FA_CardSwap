@@ -5,68 +5,141 @@ import { useGameStore } from '../store/gameStore';
 
 export default function Match() {
   const { startingXI } = useDraftStore();
-  const { playerHand, botHand, playerBoardCard, botBoardCard, playerScore, botScore, status, message, initGame, playCard } = useGameStore();
+  const { playerHand, playerDeck, botHand, botDeck, playerBoardCard, botBoardCard, playerScore, botScore, status, message, initGame, playCard } = useGameStore();
 
   useEffect(() => {
     initGame(startingXI);
   }, [initGame, startingXI]);
 
   return (
-    <div className="min-h-screen bg-green-900 flex flex-col font-sans relative overflow-hidden text-white">
-      {/* Fondo estilo cancha */}
-      <div className="absolute inset-0 border-[16px] border-green-800 opacity-30 pointer-events-none"></div>
-      <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/20 -translate-y-1/2 pointer-events-none"></div>
-      <div className="absolute top-1/2 left-1/2 w-32 h-32 border-4 border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+    <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
+      
+      {/* 1. Capa de Color Base y Cortes de la Podadora */}
+      <div 
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: `
+            repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px),
+            radial-gradient(circle at center, #26733a 0%, #143d22 100%)
+          `
+        }}
+      ></div>
 
-      {/* Marcador Superior */}
-      <header className="bg-black/50 p-4 text-center z-10 flex justify-between items-center px-10">
-        <div className="text-2xl font-black text-cyan-400">TU: {playerScore}</div>
-        <div className="text-xl font-bold">{message}</div>
-        <div className="text-2xl font-black text-red-500">BOT: {botScore}</div>
+      {/* 2. NUEVA CAPA: Textura de Alta Fidelidad (Pasto, Hojas y Tierra) */}
+      {/* Usamos ruido fractal matemático para simular la textura orgánica tridimensional */}
+      <div 
+        className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+        }}
+      ></div>
+
+      {/* 3. Manchas sutiles de desgaste natural en el campo (Áreas más secas) */}
+      <div 
+        className="absolute inset-0 pointer-events-none z-0 opacity-30 mix-blend-multiply"
+        style={{
+          backgroundImage: `radial-gradient(circle at 20% 30%, #3f2a14 0%, transparent 15%), radial-gradient(circle at 80% 70%, #3f2a14 0%, transparent 20%)`,
+          filter: 'blur(30px)'
+        }}
+      ></div>
+
+      {/* 4. Viñeta de sombra perimetral para dar profundidad */}
+      <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.7)] pointer-events-none z-0"></div>
+
+      {/* ================= DIBUJO EXACTO DE LA CANCHA ================= */}
+      <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] border-white/20 rounded-lg pointer-events-none flex flex-col items-center z-0 overflow-hidden shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+        <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/20 -translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-28 h-28 md:w-40 md:h-40 border-[2px] border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2 backdrop-blur-[1px]"></div>
+        <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white/40 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+
+        {/* Lado del Bot */}
+        <div className="absolute top-0 w-[55%] max-w-[350px] h-[15%] min-h-[70px] border-x-[2px] border-b-[2px] border-white/20 rounded-b-sm backdrop-blur-[1px]"></div>
+        <div className="absolute top-0 w-[20%] max-w-[120px] h-[6%] min-h-[30px] border-x-[2px] border-b-[2px] border-white/20 rounded-b-sm"></div>
+        <div className="absolute top-[15%] w-[18%] max-w-[100px] h-[5%] min-h-[25px] border-b-[2px] border-x-[2px] border-transparent !border-b-white/20 rounded-b-full"></div>
+
+        {/* Lado del Jugador */}
+        <div className="absolute bottom-0 w-[55%] max-w-[350px] h-[15%] min-h-[70px] border-x-[2px] border-t-[2px] border-white/20 rounded-t-sm backdrop-blur-[1px]"></div>
+        <div className="absolute bottom-0 w-[20%] max-w-[120px] h-[6%] min-h-[30px] border-x-[2px] border-t-[2px] border-white/20 rounded-t-sm"></div>
+        <div className="absolute bottom-[15%] w-[18%] max-w-[100px] h-[5%] min-h-[25px] border-t-[2px] border-x-[2px] border-transparent !border-t-white/20 rounded-t-full"></div>
+      </div>
+      {/* ============================================================== */}
+
+      {/* Marcador Superior Flotante */}
+      <header className="relative z-10 flex justify-center pt-4 shrink-0">
+        <div className="bg-black/60 backdrop-blur-lg border border-white/10 px-6 md:px-10 py-2 md:py-3 rounded-full flex gap-8 md:gap-16 items-center shadow-[0_15px_35px_rgba(0,0,0,0.5)]">
+          <div className="text-xl md:text-3xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)] tracking-tighter">TÚ: {playerScore}</div>
+          <div className="text-[10px] md:text-xs font-medium tracking-[0.2em] md:tracking-[0.3em] text-slate-300 uppercase whitespace-nowrap">{message}</div>
+          <div className="text-xl md:text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)] tracking-tighter">BOT: {botScore}</div>
+        </div>
       </header>
 
-      {/* Zona del Bot (Arriba) */}
-      <div className="flex justify-center gap-2 p-4 overflow-x-auto z-10 opacity-70 scale-90 -mt-4">
-        {botHand.map((card) => (
-          <div key={card.id} className="w-20 h-28 bg-red-950 border-2 border-red-800 rounded-lg flex items-center justify-center">
-            <span className="text-xs text-red-800">?</span>
-          </div>
-        ))}
+      {/* Zona del Bot */}
+      <div className="flex justify-between items-start px-4 md:px-12 mt-2 md:mt-4 z-10 opacity-90 origin-top shrink-0">
+        <div className="w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl">
+          <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
+          <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
+        </div>
+        <div className="flex justify-center gap-2 md:gap-3.5 overflow-x-auto flex-1 px-4 md:px-10">
+          {botHand.map((card) => (
+            <div key={card.id} className="w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+               <div className="absolute inset-0 bg-gradient-to-br from-red-950/30 to-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <span className="text-2xl md:text-3xl opacity-20 group-hover:opacity-30 transition-opacity">⚽</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* El Tablero / Arena de Batalla (Centro) */}
-      <div className="flex-1 flex items-center justify-center gap-8 z-10">
-        <div className="w-40 h-56 border-2 border-dashed border-cyan-500/50 rounded-xl flex items-center justify-center bg-cyan-900/20">
+      {/* Arena de Batalla */}
+      <div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2">
+        <div className={`w-28 h-40 md:w-40 md:h-56 rounded-2xl md:rounded-3xl flex items-center justify-center transition-all duration-500 shadow-[0_25px_50px_rgba(0,0,0,0.6)] ${playerBoardCard ? '' : 'border border-cyan-500/30 bg-black/50 backdrop-blur-md shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]'}`}>
           {playerBoardCard && <Card card={playerBoardCard} disabled />}
         </div>
-        <div className="text-4xl font-black text-white/30">VS</div>
-        <div className="w-40 h-56 border-2 border-dashed border-red-500/50 rounded-xl flex items-center justify-center bg-red-900/20">
+        
+        <div className="flex flex-col items-center justify-center">
+           <div className="text-3xl md:text-6xl font-black italic text-white/20 tracking-tighter drop-shadow-2xl">VS</div>
+        </div>
+
+        <div className={`w-28 h-40 md:w-40 md:h-56 rounded-2xl md:rounded-3xl flex items-center justify-center transition-all duration-500 shadow-[0_25px_50px_rgba(0,0,0,0.6)] ${botBoardCard ? '' : 'border border-red-500/30 bg-black/50 backdrop-blur-md shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]'}`}>
           {botBoardCard && <Card card={botBoardCard} disabled />}
         </div>
       </div>
 
-      {/* Zona del Jugador (Abajo) */}
-      <div className="flex justify-center gap-2 p-4 overflow-x-auto z-10 pb-8">
-        {playerHand.map((card) => (
-          <Card
-            key={card.id}
-            card={card}
-            onClick={() => playCard(card)}
-            disabled={status !== 'playing'}
-          />
-        ))}
+      {/* Zona del Jugador */}
+      <div className="flex justify-between items-end px-4 md:px-12 pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
+        <div className="w-20 h-28 md:w-26 md:h-38 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-slate-400 font-bold shadow-2xl relative overflow-hidden">
+          <span className="text-[8px] md:text-[10px] tracking-widest z-10 font-medium opacity-70">MAZO</span>
+          <span className="text-3xl md:text-5xl text-white drop-shadow-lg z-10 font-black tracking-tighter">{playerDeck?.length || 0}</span>
+        </div>
+        <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto flex-1 px-4 md:px-10">
+          {playerHand.map((card) => (
+            <Card 
+              key={card.id} 
+              card={card} 
+              onClick={() => playCard(card)} 
+              disabled={status !== 'playing'}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Pantalla de Fin de Juego */}
       {status === 'gameover' && (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
-          <h1 className="text-6xl font-black mb-4">{message}</h1>
-          <h2 className="text-3xl mb-8">TU {playerScore} - {botScore} BOT</h2>
-          <button
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center z-50">
+          <h1 className={`text-5xl md:text-8xl font-black mb-4 uppercase tracking-tighter ${playerScore > botScore ? 'text-cyan-400 drop-shadow-[0_0_50px_rgba(34,211,238,0.6)]' : playerScore < botScore ? 'text-red-500 drop-shadow-[0_0_50px_rgba(239,68,68,0.6)]' : 'text-slate-200'}`}>
+            {message}
+          </h1>
+          
+          <div className="flex items-center gap-6 md:gap-12 mb-10 md:mb-16 bg-black/50 p-6 md:p-8 rounded-full border border-white/10 shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]">
+            <div className="text-5xl md:text-7xl font-black text-cyan-400 tracking-tighter">{playerScore}</div>
+            <div className="text-2xl md:text-3xl text-slate-600 font-light">VS</div>
+            <div className="text-5xl md:text-7xl font-black text-red-500 tracking-tighter">{botScore}</div>
+          </div>
+
+          <button 
             onClick={() => initGame(startingXI)}
-            className="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-xl font-bold transition-colors"
+            className="px-8 md:px-12 py-3 md:py-4 bg-white text-black rounded-full text-lg md:text-xl font-bold transition-all hover:scale-105 hover:bg-slate-200 shadow-[0_15px_40px_rgba(255,255,255,0.3)]"
           >
-            Jugar de nuevo
+            VOLVER A JUGAR
           </button>
         </div>
       )}
