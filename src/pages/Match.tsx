@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { motion } from 'framer-motion'; // <-- Importación añadida
 import Card from '../components/Card';
 import { useDraftStore } from '../store/draftStore';
 import { useGameStore } from '../store/gameStore';
@@ -33,12 +34,11 @@ export default function Match() {
         <div className="absolute bottom-[15%] w-[18%] max-w-[100px] h-[5%] min-h-[25px] border-t-[2px] border-x-[2px] border-transparent !border-t-white/20 rounded-t-full"></div>
       </div>
 
-      {/* MAZOS POSICIONADOS AL CENTRO-DERECHA */}
+      {/* MAZOS */}
       <div className="absolute right-6 md:right-16 bottom-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
       </div>
-
       <div className="absolute right-6 md:right-16 top-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
@@ -53,44 +53,44 @@ export default function Match() {
         </div>
       </header>
 
-      {/* Zona del Bot (Solo Mano) */}
+      {/* Zona del Bot (Convertidas a motion.div para que vuelen también) */}
       <div className="flex justify-center items-start mt-2 md:mt-4 z-10 opacity-90 origin-top shrink-0">
         <div className="flex justify-center gap-2 md:gap-3.5 overflow-x-auto px-4 md:px-10 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {botHand.map((card) => (
-            <div key={card.id} className="w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+            <motion.div 
+              key={card.id} 
+              layoutId={`card-${card.id}`}
+              className="w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group"
+            >
                <div className="absolute inset-0 bg-gradient-to-br from-red-950/30 to-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <span className="text-2xl md:text-3xl opacity-20 group-hover:opacity-30 transition-opacity">⚽</span>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
 
-      {/* Arena de Batalla - SE CORRIGIÓ EL BUG VISUAL DEL PLACEHOLDER AQUÍ */}
+      {/* Arena de Batalla (Se agregó isBoardCard) */}
       <div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2">
-        
-        {/* Espacio Jugador */}
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!playerBoardCard && (
             <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 backdrop-blur-md shadow-[inset_0_0_40px_rgba(0,0,0,0.4),0_25px_50px_rgba(0,0,0,0.6)]"></div>
           )}
-          {playerBoardCard && <Card card={playerBoardCard} disabled />}
+          {playerBoardCard && <Card card={playerBoardCard} disabled isBoardCard />}
         </div>
         
         <div className="flex flex-col items-center justify-center pointer-events-none">
            <div className="text-3xl md:text-6xl font-black italic text-white/20 tracking-tighter drop-shadow-2xl">VS</div>
         </div>
 
-        {/* Espacio Bot */}
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && (
             <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 backdrop-blur-md shadow-[inset_0_0_40px_rgba(0,0,0,0.4),0_25px_50px_rgba(0,0,0,0.6)]"></div>
           )}
-          {botBoardCard && <Card card={botBoardCard} disabled />}
+          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard />}
         </div>
-
       </div>
 
-      {/* Zona del Jugador (Solo Mano) */}
+      {/* Zona del Jugador */}
       <div className="flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {playerHand.map((card) => (

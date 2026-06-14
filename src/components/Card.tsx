@@ -8,17 +8,43 @@ interface CardProps {
   disabled?: boolean;
   draggable?: boolean;
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  isBoardCard?: boolean; // Prop para saber si está en la arena
 }
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard }: CardProps) {
   const isBot = card.owner === 'bot';
 
   return (
     <motion.div
+      // 1. layoutId es CRÍTICO: Esto hace que la carta no se teletransporte, sino que viaje de la mano al centro.
+      layoutId={`card-${card.id}`}
+      
       draggable={draggable}
       onDragStartCapture={onDragStart}
-      whileHover={!disabled && !isBot ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
-      transition={{ type: "spring", stiffness: 500, damping: 25 }}
+      
+      // Animación al pasar el mouse (solo en mano)
+      whileHover={!disabled && !isBot && !isBoardCard ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
+      
+      // 2. EL GIRO EN EL AIRE: [0, 180, 360] fuerza a que gire de boca arriba -> boca abajo -> boca arriba
+      animate={{ 
+        rotateX: isBoardCard ? [0, 180, 360] : 0,
+        // Z index alto durante la animación para que pase por encima de todo
+        zIndex: isBoardCard ? 100 : 1
+      }}
+      
+      transition={{
+        // 3. LA CLAVE DE LA SINCRONIZACIÓN: 
+        // El viaje (layout) y el giro (rotateX) DEBEN durar exactamente lo mismo (0.35s)
+        layout: { duration: 0.35, ease: "easeOut" },
+        rotateX: { duration: 0.35, ease: "linear" }, // linear hace que el giro sea constante y no se frene a la mitad
+        
+        // Para todo lo demás (como el hover), seguimos usando resortes rápidos
+        default: { type: "spring", stiffness: 500, damping: 25 }
+      }}
+      
+      // preserve-3d permite que veamos el reverso de la carta al girar
+      style={{ transformStyle: "preserve-3d" }}
+      
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
         ${isBot 
