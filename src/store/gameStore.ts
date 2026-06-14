@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { CardData } from '../gameData';
 import { MOCK_DECK } from '../gameData';
 
+const HAND_SIZE = 4;
+
 interface GameState {
   difficulty: string;
   playerHand: CardData[];
@@ -20,6 +22,24 @@ interface GameState {
   playCard: (card: CardData) => void;
 }
 
+const refillHand = (hand: CardData[], deck: CardData[]) => {
+  const nextHand = [...hand];
+  const nextDeck = [...deck];
+
+  while (nextHand.length < HAND_SIZE && nextDeck.length > 0) {
+    const drawnCard = nextDeck.shift();
+    if (drawnCard) nextHand.push(drawnCard);
+  }
+
+  return { hand: nextHand, deck: nextDeck };
+};
+
+const createMatchDeck = (cards: CardData[], prefix: string) =>
+  cards.map((card, index) => ({
+    ...card,
+    id: `${prefix}-${card.id}-${index}`,
+  }));
+
 export const useGameStore = create<GameState>((set, get) => ({
   difficulty: 'Normal',
   playerHand: [], playerDeck: [], playerDiscard: [],
@@ -32,17 +52,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const shuffle = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
     
     // Repartimos 11 cartas aleatorias de todo el mazo para cada jugador
-    const allCards = shuffle([...MOCK_DECK]);
-    const shuffledPlayerCards = allCards.slice(0, 11);
-    const shuffledBotCards = shuffle([...MOCK_DECK]).slice(0, 11);
+    const shuffledPlayerCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'player');
+    const shuffledBotCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'bot');
 
     set({
       difficulty: diff,
-      playerHand: shuffledPlayerCards.slice(0, 4),
-      playerDeck: shuffledPlayerCards.slice(4, 11),
+      playerHand: shuffledPlayerCards.slice(0, HAND_SIZE),
+      playerDeck: shuffledPlayerCards.slice(HAND_SIZE, 11),
       playerDiscard: [],
-      botHand: shuffledBotCards.slice(0, 4),
-      botDeck: shuffledBotCards.slice(4, 11),
+      botHand: shuffledBotCards.slice(0, HAND_SIZE),
+      botDeck: shuffledBotCards.slice(HAND_SIZE, 11),
       botDiscard: [],
       playerBoardCard: null, botBoardCard: null,
       playerScore: 0, botScore: 0,
@@ -51,12 +70,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   playCard: (playerCard) => {
-    const { botHand, status, difficulty } = get();
-    if (status !== 'playing') return;
+    const { botHand, status, difficulty, playerHand, playerBoardCard } = get();
+    const cardInHand = playerHand.find((card) => card.id === playerCard.id);
+    if (status !== 'playing' || playerBoardCard || !cardInHand) return;
 
     set((state) => ({
-      playerBoardCard: playerCard,
-      playerHand: state.playerHand.filter((c) => c.id !== playerCard.id),
+      playerBoardCard: cardInHand,
+      playerHand: state.playerHand.filter((c) => c.id !== cardInHand.id),
       status: 'resolving',
       message: 'El Bot está pensando...',
     }));
@@ -69,18 +89,23 @@ export const useGameStore = create<GameState>((set, get) => ({
         botCard = botHand[Math.floor(Math.random() * botHand.length)];
       } else if (difficulty === 'Normal') {
         if (Math.random() > 0.5) {
-          const winningCards = botHand.filter(c => c.atk > playerCard.atk);
+          const winningCards = botHand.filter(c => c.atk > cardInHand.atk);
           botCard = winningCards.length > 0 ? winningCards[0] : botHand[Math.floor(Math.random() * botHand.length)];
         } else {
           botCard = botHand[Math.floor(Math.random() * botHand.length)];
         }
       } else {
-        const winningCards = botHand.filter(c => c.atk > playerCard.atk).sort((a, b) => a.atk - b.atk);
+        const winningCards = botHand.filter(c => c.atk > cardInHand.atk).sort((a, b) => a.atk - b.atk);
         if (winningCards.length > 0) {
           botCard = winningCards[0];
         } else {
           botCard = [...botHand].sort((a, b) => a.atk - b.atk)[0];
         }
+      }
+
+      if (!botCard) {
+        set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
+        return;
       }
 
       set((state) => ({
@@ -90,10 +115,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       setTimeout(() => {
         let winnerMsg = '';
-        if (playerCard.atk > botCard.atk) {
+        if (cardInHand.atk > botCard.atk) {
           winnerMsg = '¡Ganaste el duelo!';
           set((state) => ({ playerScore: state.playerScore + 1 }));
-        } else if (botCard.atk > playerCard.atk) {
+        } else if (botCard.atk > cardInHand.atk) {
           winnerMsg = 'El Bot gana el duelo.';
           set((state) => ({ botScore: state.botScore + 1 }));
         } else {
@@ -103,7 +128,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         setTimeout(() => {
           set((state) => ({
-            playerDiscard: [...state.playerDiscard, playerCard],
+            playerDiscard: [...state.playerDiscard, cardInHand],
             botDiscard: [...state.botDiscard, botCard],
             playerBoardCard: null, botBoardCard: null,
             message: 'Robando cartas...',
@@ -111,27 +136,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
           setTimeout(() => {
             const state = get();
-            let newPlayerHand = [...state.playerHand];
-            let newPlayerDeck = [...state.playerDeck];
-            let newBotHand = [...state.botHand];
-            let newBotDeck = [...state.botDeck];
+            const playerRefill = refillHand(state.playerHand, state.playerDeck);
+            const botRefill = refillHand(state.botHand, state.botDeck);
 
-            if (newPlayerDeck.length > 0) {
-              newPlayerHand.push(newPlayerDeck[0]);
-              newPlayerDeck.shift();
-            }
-            if (newBotDeck.length > 0) {
-              newBotHand.push(newBotDeck[0]);
-              newBotDeck.shift();
-            }
-
-            if (newPlayerHand.length === 0 && newPlayerDeck.length === 0) {
+            if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
               set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
             } else {
               set({ 
                 status: 'playing', message: '¡Tu turno!',
-                playerHand: newPlayerHand, playerDeck: newPlayerDeck,
-                botHand: newBotHand, botDeck: newBotDeck
+                playerHand: playerRefill.hand, playerDeck: playerRefill.deck,
+                botHand: botRefill.hand, botDeck: botRefill.deck
               });
             }
           }, 600);

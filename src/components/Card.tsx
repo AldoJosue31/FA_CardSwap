@@ -24,7 +24,8 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
   };
 
   const isNewDraw = !isBoardCard && !isDiscardCard;
-  const initialDrawProps = isNewDraw ? { x: 300, y: isBot ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 } : false;
+  const canInteract = !disabled && !isBoardCard && !isDiscardCard;
+  const initialDrawProps = isNewDraw ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 } : false;
 
   const animateProps = isBoardCard 
     ? { rotateX: [0, 180, 360], z: [0, 120, 0], scale: [1, 1.15, 1], opacity: 1, rotate: 0 } 
@@ -38,7 +39,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       draggable={draggable}
       onDragStartCapture={onDragStart}
       
-      whileHover={!disabled && !isBot && !isBoardCard && !isDiscardCard ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
+      whileHover={canInteract ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
       
       initial={initialDrawProps}
       animate={animateProps}

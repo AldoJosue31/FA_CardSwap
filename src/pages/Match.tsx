@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Card from '../components/Card';
 import { useGameStore } from '../store/gameStore';
@@ -7,8 +7,12 @@ const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
 export default function Match({ difficulty, onReturnToMenu, onNextLevel }: { difficulty?: string, onReturnToMenu?: () => void, onNextLevel?: (diff: string) => void }) {
   const { playerHand, playerDeck, playerDiscard, botHand, botDeck, botDiscard, playerBoardCard, botBoardCard, playerScore, botScore, status, message, initGame, playCard } = useGameStore();
+  const [isPaused, setIsPaused] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
+    setIsPaused(false);
+    setIsHelpOpen(false);
     initGame(difficulty || 'Normal');
   }, [initGame, difficulty]);
 
@@ -39,6 +43,20 @@ export default function Match({ difficulty, onReturnToMenu, onNextLevel }: { dif
       <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-30 mix-blend-multiply" style={{ backgroundImage: `radial-gradient(circle at 20% 30%, #3f2a14 0%, transparent 15%), radial-gradient(circle at 80% 70%, #3f2a14 0%, transparent 20%)`, filter: 'blur(30px)' }}></div>
       <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.7)] pointer-events-none z-0"></div>
+
+      {status === 'playing' && (
+        <button
+          onClick={() => {
+            setIsHelpOpen(false);
+            setIsPaused(true);
+          }}
+          className="absolute top-4 right-4 md:top-6 md:right-8 z-40 h-11 w-11 md:h-12 md:w-12 rounded-full bg-black/70 border border-white/15 text-white text-xl font-black backdrop-blur-md shadow-[0_10px_25px_rgba(0,0,0,0.45)] transition-all hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+          aria-label="Pausar partida"
+          title="Pausar"
+        >
+          II
+        </button>
+      )}
 
       {/* Dibujo Cancha */}
       <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] border-white/20 rounded-lg pointer-events-none flex flex-col items-center z-0 overflow-hidden shadow-[0_0_10px_rgba(255,255,255,0.1)]">
@@ -126,11 +144,74 @@ export default function Match({ difficulty, onReturnToMenu, onNextLevel }: { dif
               key={card.id} 
               card={card} 
               onClick={() => playCard(card)} 
-              disabled={status !== 'playing'}
+              disabled={status !== 'playing' || isPaused}
             />
           ))}
         </div>
       </div>
+
+      {/* Menú de Pausa */}
+      {isPaused && status !== 'gameover' && (
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 px-6">
+          <p className="text-sm md:text-base text-cyan-300 font-bold tracking-[0.35em] uppercase mb-3">
+            NIVEL: {difficulty}
+          </p>
+          <h1 className="text-5xl md:text-7xl font-black mb-10 uppercase tracking-tighter text-center text-white drop-shadow-[0_0_40px_rgba(34,211,238,0.35)]">
+            PAUSA
+          </h1>
+
+          <div className="flex flex-col gap-4 w-full max-w-sm">
+            <button
+              onClick={() => setIsPaused(false)}
+              className="w-full py-4 bg-cyan-500 text-black rounded-xl text-lg font-black transition-all hover:scale-105 shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+            >
+              CONTINUAR
+            </button>
+
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              className="w-full py-4 bg-white/10 text-white border border-cyan-400/30 rounded-xl text-lg font-bold transition-all hover:scale-105 hover:bg-cyan-400/15 hover:border-cyan-300/60"
+            >
+              AYUDA
+            </button>
+
+            {onReturnToMenu && (
+              <button
+                onClick={onReturnToMenu}
+                className="w-full py-4 bg-white/10 text-white border border-white/20 rounded-xl text-lg font-bold transition-all hover:bg-white/20"
+              >
+                SALIR
+              </button>
+            )}
+          </div>
+
+          {isHelpOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center px-6 z-10"
+            >
+              <div className="w-full max-w-md rounded-2xl border border-cyan-400/30 bg-slate-950/95 p-6 md:p-8 shadow-[0_0_45px_rgba(34,211,238,0.18)]">
+                <p className="text-xs text-cyan-300 font-bold tracking-[0.35em] uppercase mb-2">GUIA RAPIDA</p>
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white mb-5">COMO JUGAR</h2>
+                <div className="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
+                  <p>Elige una carta de tu mano. Cuando la tiras, el CPU responde con una sola carta.</p>
+                  <p>Cuando ambas cartas estan en la cancha, se comparan sus puntos de ATK.</p>
+                  <p>La carta con mayor ATK gana el duelo y suma 1 punto. Si empatan, nadie suma.</p>
+                  <p>Gana la partida quien tenga mas puntos cuando se acaben las cartas.</p>
+                </div>
+                <button
+                  onClick={() => setIsHelpOpen(false)}
+                  className="mt-7 w-full py-4 bg-cyan-500 text-black rounded-xl text-lg font-black transition-all hover:scale-105 shadow-[0_0_30px_rgba(34,211,238,0.35)]"
+                >
+                  ENTENDIDO
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {/* Pantalla de Fin de Juego (Progreso y Puntajes) */}
       {status === 'gameover' && (
@@ -170,7 +251,7 @@ export default function Match({ difficulty, onReturnToMenu, onNextLevel }: { dif
                 onClick={onReturnToMenu}
                 className="w-full py-4 bg-transparent text-slate-400 rounded-xl text-sm font-bold tracking-widest uppercase transition-all hover:text-white"
               >
-                VOLVER AL MENÚ
+                SALIR
               </button>
             )}
           </div>

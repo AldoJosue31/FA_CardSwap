@@ -5,8 +5,8 @@ type MenuScreen = 'boot' | 'title' | 'main' | 'quickplay' | 'local' | 'difficult
 
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
-export default function MainMenu({ onStartMatch }: { onStartMatch?: (diff: string) => void }) {
-  const [screen, setScreen] = useState<MenuScreen>('boot');
+export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { initialScreen?: MenuScreen, onStartMatch?: (diff: string) => void }) {
+  const [screen, setScreen] = useState<MenuScreen>(initialScreen);
   const [unlockedLevel, setUnlockedLevel] = useState<number>(1);
 
   useEffect(() => {
