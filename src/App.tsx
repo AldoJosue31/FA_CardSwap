@@ -1,17 +1,26 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import LockerRoom from './pages/LockerRoom';
+import { useState } from 'react';
+import MainMenu from './pages/MainMenu';
 import Match from './pages/Match';
 
-function App() {
+export default function App() {
+  const [currentView, setCurrentView] = useState<'menu' | 'match'>('menu');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('Normal');
+
+  const handleStartMatch = (difficulty: string) => {
+    setSelectedDifficulty(difficulty);
+    setCurrentView('match');
+  };
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LockerRoom />} />
-        <Route path="/match" element={<Match />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+    <>
+      {currentView === 'menu' && <MainMenu onStartMatch={handleStartMatch} />}
+      {currentView === 'match' && (
+        <Match 
+          difficulty={selectedDifficulty} 
+          onReturnToMenu={() => setCurrentView('menu')}
+          onNextLevel={(nextDiff) => handleStartMatch(nextDiff)}
+        />
+      )}
+    </>
   );
 }
-
-export default App;

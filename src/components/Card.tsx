@@ -8,45 +8,54 @@ interface CardProps {
   disabled?: boolean;
   draggable?: boolean;
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
-  isBoardCard?: boolean; // Prop para saber si está en la arena
+  isBoardCard?: boolean;
+  isDiscardCard?: boolean;
 }
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard }: CardProps) {
   const isBot = card.owner === 'bot';
+
+  const getGraveyardRotation = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return (hash % 30) - 15;
+  };
+
+  const isNewDraw = !isBoardCard && !isDiscardCard;
+  const initialDrawProps = isNewDraw ? { x: 300, y: isBot ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 } : false;
+
+  const animateProps = isBoardCard 
+    ? { rotateX: [0, 180, 360], z: [0, 120, 0], scale: [1, 1.15, 1], opacity: 1, rotate: 0 } 
+    : isDiscardCard 
+    ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
+    : { x: 0, y: 0, scale: 1, opacity: 1, rotateX: 0, z: 0, rotate: 0 };
 
   return (
     <motion.div
-      // 1. layoutId es CRÍTICO: Esto hace que la carta no se teletransporte, sino que viaje de la mano al centro.
       layoutId={`card-${card.id}`}
-      
       draggable={draggable}
       onDragStartCapture={onDragStart}
       
-      // Animación al pasar el mouse (solo en mano)
-      whileHover={!disabled && !isBot && !isBoardCard ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
+      whileHover={!disabled && !isBot && !isBoardCard && !isDiscardCard ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
       
-      // 2. EL GIRO EN EL AIRE: [0, 180, 360] fuerza a que gire de boca arriba -> boca abajo -> boca arriba
-      animate={{ 
-        rotateX: isBoardCard ? [0, 180, 360] : 0,
-        // Z index alto durante la animación para que pase por encima de todo
-        zIndex: isBoardCard ? 100 : 1
-      }}
+      initial={initialDrawProps}
+      animate={animateProps}
       
       transition={{
-        // 3. LA CLAVE DE LA SINCRONIZACIÓN: 
-        // El viaje (layout) y el giro (rotateX) DEBEN durar exactamente lo mismo (0.35s)
-        layout: { duration: 0.35, ease: "easeOut" },
-        rotateX: { duration: 0.35, ease: "linear" }, // linear hace que el giro sea constante y no se frene a la mitad
-        
-        // Para todo lo demás (como el hover), seguimos usando resortes rápidos
+        layout: { duration: 0.4, ease: "easeOut" },
+        rotate: { duration: 0.4, ease: "easeOut" },
+        rotateX: { duration: 0.4, ease: "linear" },
+        z: { duration: 0.4, ease: "easeInOut" },
+        x: { type: "spring", stiffness: 300, damping: 25 },
+        y: { type: "spring", stiffness: 300, damping: 25 },
         default: { type: "spring", stiffness: 500, damping: 25 }
       }}
       
-      // preserve-3d permite que veamos el reverso de la carta al girar
-      style={{ transformStyle: "preserve-3d" }}
-      
+      style={{ transformStyle: "preserve-3d", zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1 }}
       onClick={!disabled ? onClick : undefined}
-      className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
+      className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none
         ${isBot 
           ? 'bg-gradient-to-br from-red-950 via-black to-black border border-red-800/40 shadow-[0_8px_25px_rgba(0,0,0,0.5)]' 
           : 'bg-gradient-to-br from-slate-800 via-slate-900 to-black border border-slate-700/50 shadow-[0_8px_25px_rgba(0,0,0,0.4)]'} 
