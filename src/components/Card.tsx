@@ -30,6 +30,7 @@ const getSupabaseImageUrl = (filename: string) => {
 
 export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard }: CardProps) {
   const isBot = card.owner === 'bot';
+  const isLegend = card.isLegend; 
 
   const flagCode = FLAG_MAP[card.nationality] || 'xx';
   const flagUrl = `https://flagcdn.com/w320/${flagCode}.png`;
@@ -57,17 +58,32 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
 
   const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
 
+  const bgClass = isLegend 
+    ? 'bg-gradient-to-br from-slate-700 via-slate-800 to-[#111]' 
+    : isBot 
+      ? 'bg-gradient-to-br from-red-950 via-black to-black' 
+      : 'bg-gradient-to-br from-slate-800 via-slate-900 to-black';
+
+  const borderClass = isLegend 
+    ? 'border-2 border-slate-300' 
+    : isBot 
+      ? 'border border-red-800/40' 
+      : 'border border-slate-700/50';
+
+  const shadowClass = isLegend 
+    ? 'shadow-[0_0_20px_rgba(255,255,255,0.25)]' 
+    : isBot 
+      ? 'shadow-[0_8px_25px_rgba(0,0,0,0.5)]' 
+      : 'shadow-[0_8px_25px_rgba(0,0,0,0.4)]';
+
   return (
     <motion.div
       layoutId={cardLayoutId}
       draggable={draggable}
       onDragStartCapture={onDragStart}
-      
       whileHover={canInteract ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
-      
       initial={initialDrawProps}
       animate={animateProps}
-      
       transition={{
         layout: { duration: 0.4, ease: "easeOut" },
         rotate: { duration: 0.4, ease: "easeOut" },
@@ -77,7 +93,6 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         y: { type: "spring", stiffness: 300, damping: 25 },
         default: { type: "spring", stiffness: 500, damping: 25 }
       }}
-      
       style={{ 
         transformStyle: "preserve-3d", 
         zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
@@ -86,26 +101,41 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       }}
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
-        ${isBot 
-          ? 'bg-gradient-to-br from-red-950 via-black to-black border border-red-800/40 shadow-[0_8px_25px_rgba(0,0,0,0.5)]' 
-          : 'bg-gradient-to-br from-slate-800 via-slate-900 to-black border border-slate-700/50 shadow-[0_8px_25px_rgba(0,0,0,0.4)]'} 
+        ${bgClass} ${borderClass} ${shadowClass}
         ${disabled ? 'cursor-default pointer-events-none' : 'ring-1 ring-white/10 cursor-pointer'}`}
     >
-      <div className="absolute top-0 left-0 right-0 h-2/3 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-0"></div>
+      
+      {/* ANIMACIÓN LEYENDA */}
+      {isLegend && (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-tr from-slate-300/10 via-transparent to-slate-100/20"
+            animate={{ opacity: [0.3, 0.8, 0.3] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            style={{ willChange: 'opacity' }}
+          />
+          <motion.div
+            className="absolute inset-y-0 w-[150%] bg-gradient-to-r from-transparent via-white/15 to-transparent skew-x-[-35deg]"
+            initial={{ x: '-150%' }}
+            animate={{ x: '150%' }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+            style={{ willChange: 'transform' }}
+          />
+        </div>
+      )}
 
-      {/* HEADER DE LA CARTA */}
-      {/* Nota: Redujimos a z-10 para que la cabeza del jugador (z-20) se superponga sutilmente al título */}
-      <div className={`relative z-10 w-full text-center rounded-lg py-1 px-2 flex justify-between items-center backdrop-blur-sm ${isBot ? 'bg-red-950/40 border border-red-800/30' : 'bg-slate-900/50 border border-slate-700/50'}`}>
+      <div className="absolute top-0 left-0 right-0 h-2/3 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-0 rounded-t-2xl"></div>
+
+      <div className={`relative z-10 w-full text-center rounded-lg py-1 px-2 flex justify-between items-center backdrop-blur-sm ${isLegend ? 'bg-slate-900/40 border border-slate-400/50' : isBot ? 'bg-red-950/40 border border-red-800/30' : 'bg-slate-900/50 border border-slate-700/50'}`}>
         <span className="text-white font-bold text-[10px] sm:text-xs truncate max-w-[70%] tracking-wide">{card.name}</span>
-        <span className={`${isBot ? 'text-red-400' : 'text-cyan-400'} font-black text-[10px]`}>{card.pos}</span>
+        <span className={`${isLegend ? 'text-slate-300' : isBot ? 'text-red-400' : 'text-cyan-400'} font-black text-[10px]`}>{card.pos}</span>
       </div>
 
-      {/* ================= CONTENEDOR EFECTO POP-OUT 3D ================= */}
-      {/* Quitamos el overflow-hidden de aquí para permitir que la imagen se salga */}
+      {/* ================= CONTENEDOR FOTO + BANDERA ================= */}
       <div className="relative z-20 flex-1 my-2.5 w-full flex items-center justify-center">
         
-        {/* 1. CAJA DE LA BANDERA (Ésta sí lleva overflow-hidden y rounded para ser un rectángulo perfecto) */}
-        <div className={`absolute inset-0 rounded-lg overflow-hidden ${isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
+        {/* 1. CAJA DE LA BANDERA (Guillotina exclusiva para el fondo) */}
+        <div className={`absolute inset-0 rounded-lg overflow-hidden ${isLegend ? 'bg-slate-800/50' : isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
           {card.nationality && flagCode !== 'xx' && (
             <div 
               className="absolute inset-0 bg-cover bg-center opacity-35 mix-blend-overlay z-0"
@@ -114,38 +144,41 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           )}
         </div>
 
-        {/* 2. IMAGEN DEL JUGADOR (Sobresale de la caja de la bandera) */}
+        {/* 2. IMAGEN DEL JUGADOR (Fuera de la guillotina para permitir Pop-out) */}
         {card.image && card.image.trim() !== '' ? (
           <img 
             src={getSupabaseImageUrl(card.image)} 
             alt={card.name} 
             loading={isGalleryCard ? "lazy" : "eager"}
-            // LA MAGIA ESTÁ AQUÍ:
-            // h-[120%] anclado al fondo (bottom-0) hace que el 20% sobrante de la imagen suba e invada la parte superior.
-            // Le agregamos un drop-shadow que proyecta la sombra sobre la caja, amplificando el 3D.
-            className="absolute bottom-0 inset-x-0 mx-auto w-[115%] h-[120%] object-contain object-bottom drop-shadow-[0_-5px_15px_rgba(0,0,0,0.6)] z-20 pointer-events-none" 
+            // LA FÓRMULA FINAL: 
+            // w-[125%] ensancha al jugador.
+            // h-[112%] combinado con bottom-0 clava el torso exactamente en el límite inferior, 
+            // forzando a que ese 12% extra rompa suavemente el límite superior de la bandera.
+            className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
         ) : (
-          <span className="text-4xl sm:text-5xl drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] relative z-20">⚽</span>
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+             <span className="text-4xl sm:text-5xl drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">⚽</span>
+          </div>
         )}
 
-        {/* 3. DEGRADADO INFERIOR (Oculta el corte del pecho, lleva borde redondeado para empatar con la caja de la bandera) */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 rounded-b-lg bg-gradient-to-t from-black/95 via-black/20 to-transparent z-30 pointer-events-none"></div>
+        {/* 3. DEGRADADO INFERIOR (Cubre el pecho y tiene bordes redondeados para empatar con la caja) */}
+        <div className="absolute inset-x-0 bottom-0 h-[45%] rounded-b-lg bg-gradient-to-t from-black/90 via-black/40 to-transparent z-30 pointer-events-none"></div>
+        
       </div>
       {/* ============================================================= */}
 
-      {/* FOOTER STATS */}
-      <div className={`relative z-30 flex justify-between w-full font-black text-sm sm:text-lg p-1.5 rounded-lg backdrop-blur-sm ${isBot ? 'bg-red-950/50 border border-red-900/30' : 'bg-slate-900/60 border border-slate-700/40'}`}>
+      <div className={`relative z-30 flex justify-between w-full font-black text-sm sm:text-lg p-1.5 rounded-lg backdrop-blur-sm ${isLegend ? 'bg-slate-900/50 border border-slate-400/40' : isBot ? 'bg-red-950/50 border border-red-900/30' : 'bg-slate-900/60 border border-slate-700/40'}`}>
         <div className="flex flex-col items-center">
           <span className="text-[8px] text-slate-400 tracking-widest font-medium">ATK</span>
-          <span className="text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.4)]">{card.atk}</span>
+          <span className={`${isLegend ? 'text-slate-100' : 'text-red-400'} drop-shadow-[0_0_5px_rgba(248,113,113,0.4)]`}>{card.atk}</span>
         </div>
         <div className="flex flex-col items-center">
           <span className="text-[8px] text-slate-400 tracking-widest font-medium">DEF</span>
-          <span className="text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.4)]">{card.def}</span>
+          <span className={`${isLegend ? 'text-slate-100' : 'text-blue-400'} drop-shadow-[0_0_5px_rgba(96,165,250,0.4)]`}>{card.def}</span>
         </div>
       </div>
     </motion.div>

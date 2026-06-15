@@ -13,7 +13,8 @@ interface DraftState {
 export const useDraftStore = create<DraftState>()(
   persist(
     (set) => ({
-      collection: MOCK_DECK.filter((c) => c.owner === 'player'),
+      // CORRECCIÓN: Carga TODA la base de datos libre como colección
+      collection: [...MOCK_DECK],
       startingXI: [],
 
       moveCard: (cardId, destination) =>
@@ -46,7 +47,6 @@ export const useDraftStore = create<DraftState>()(
           if (state.startingXI.length >= 11) return state;
           
           const slotsToFill = 11 - state.startingXI.length;
-          // Ordenar colección por Ataque (mayor a menor)
           const sortedCollection = [...state.collection].sort((a, b) => b.atk - a.atk);
           const bestCards = sortedCollection.slice(0, slotsToFill);
           const idsToAdd = bestCards.map(c => c.id);

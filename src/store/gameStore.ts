@@ -38,6 +38,7 @@ const createMatchDeck = (cards: CardData[], prefix: string) =>
   cards.map((card, index) => ({
     ...card,
     id: `${prefix}-${card.id}-${index}`,
+    owner: prefix,
   }));
 
 export const useGameStore = create<GameState>((set, get) => ({
