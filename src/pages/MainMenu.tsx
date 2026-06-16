@@ -1,19 +1,54 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { MOCK_DECK } from '../gameData';
 import Card from '../components/Card';
+import { supabase } from '../supabaseClient';
 
-type MenuScreen = 'boot' | 'title' | 'main' | 'quickplay' | 'local' | 'difficulty' | 'online' | 'options' | 'credits' | 'support' | 'gallery';
+const ROOM_CODE_LENGTH = 6;
+
+type OnlineRoom = {
+  short_code: string;
+  status: 'waiting' | 'playing' | 'finished';
+};
+
+const createRoomCode = () =>
+  Math.random()
+    .toString(36)
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(2, 2 + ROOM_CODE_LENGTH)
+    .toUpperCase()
+    .padEnd(ROOM_CODE_LENGTH, '0');
+
+const normalizeRoomCode = (value: string) =>
+  value.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, ROOM_CODE_LENGTH);
+
+type MenuScreen = 'boot' | 'title' | 'main' | 'quickplay' | 'local' | 'difficulty' | 'online' | 'join_room' | 'waiting_room' | 'options' | 'credits' | 'support' | 'gallery';
 
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
-export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { initialScreen?: MenuScreen, onStartMatch?: (diff: string) => void }) {
+export default function MainMenu({ 
+  initialScreen = 'boot', 
+  onStartMatch,
+  onStartOnlineMatch 
+}: { 
+  initialScreen?: MenuScreen, 
+  onStartMatch?: (diff: string) => void,
+  onStartOnlineMatch?: (roomId: string, isHost: boolean) => void 
+}) {
   const [screen, setScreen] = useState<MenuScreen>(initialScreen);
   const [unlockedLevel, setUnlockedLevel] = useState<number>(1);
 
   const [posFilter, setPosFilter] = useState('ALL');
   const [natFilter, setNatFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('NONE');
+
+  // --- ESTADOS PARA MULTIJUGADOR ONLINE ---
+  const [joinCode, setJoinCode] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState('');
+  const roomChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('futarena_unlocked_level');
@@ -38,6 +73,150 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
       window.removeEventListener('click', handleKeyPress);
     };
   }, [screen]);
+
+  // ================= LÓGICA ONLINE CON SUPABASE REALTIME =================
+  useEffect(() => {
+    return () => {
+      if (roomChannelRef.current) {
+        supabase.removeChannel(roomChannelRef.current);
+        roomChannelRef.current = null;
+      }
+    };
+  }, []);
+
+  const clearRoomSubscription = () => {
+    if (roomChannelRef.current) {
+      supabase.removeChannel(roomChannelRef.current);
+      roomChannelRef.current = null;
+    }
+  };
+
+  const startOnlineMatch = (code: string, isHost: boolean) => {
+    clearRoomSubscription();
+    setIsLoading(false);
+    if (onStartOnlineMatch) onStartOnlineMatch(code, isHost);
+  };
+
+  const watchRoomStart = (code: string) => {
+    clearRoomSubscription();
+
+    const channel = supabase
+      .channel(`online_room_${code}_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'online_rooms', filter: `short_code=eq.${code}` },
+        (payload) => {
+          const updatedRoom = payload.new as OnlineRoom;
+          if (updatedRoom.status === 'playing') {
+            startOnlineMatch(code, true);
+          }
+        }
+      )
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          const { data, error } = await supabase
+            .from('online_rooms')
+            .select('short_code,status')
+            .eq('short_code', code)
+            .maybeSingle<OnlineRoom>();
+
+          if (!error && data?.status === 'playing') {
+            startOnlineMatch(code, true);
+          }
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setOnlineError('No se pudo mantener la conexion en vivo con la sala.');
+        }
+      });
+
+    roomChannelRef.current = channel;
+  };
+
+  const handleCreateRoom = async () => {
+    setIsLoading(true);
+    setOnlineError('');
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = createRoomCode();
+      const { data, error } = await supabase
+        .from('online_rooms')
+        .insert([{ short_code: code }])
+        .select('short_code,status')
+        .single<OnlineRoom>();
+
+      if (!error && data) {
+        setRoomCode(data.short_code);
+        setScreen('waiting_room');
+        setIsLoading(false);
+        watchRoomStart(data.short_code);
+        return;
+      }
+
+      if (error?.code !== '23505') {
+        setIsLoading(false);
+        setOnlineError(error?.message || 'Error al crear sala en los servidores.');
+        return;
+      }
+    }
+
+    setIsLoading(false);
+    setOnlineError('No se pudo generar un codigo de sala disponible. Intenta otra vez.');
+  };
+
+  const handleJoinRoom = async () => {
+    const codeUpper = normalizeRoomCode(joinCode);
+    if (codeUpper.length !== ROOM_CODE_LENGTH) return;
+
+    setIsLoading(true);
+    setOnlineError('');
+
+    const { data, error } = await supabase
+      .from('online_rooms')
+      .select('short_code,status')
+      .eq('short_code', codeUpper)
+      .maybeSingle<OnlineRoom>();
+
+    if (error || !data || data.status !== 'waiting') {
+      setOnlineError('Sala no encontrada o la partida ya inicio.');
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: updatedRoom, error: updateError } = await supabase
+      .from('online_rooms')
+      .update({ status: 'playing' })
+      .eq('short_code', codeUpper)
+      .eq('status', 'waiting')
+      .select('short_code,status')
+      .maybeSingle<OnlineRoom>();
+
+    if (updateError || !updatedRoom) {
+      setOnlineError(updateError?.message || 'La sala ya no esta disponible.');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(false);
+    startOnlineMatch(updatedRoom.short_code, false);
+  };
+
+  const handleCancelRoom = async () => {
+    const code = roomCode;
+    clearRoomSubscription();
+    setOnlineError('');
+    setRoomCode('');
+    setScreen('online');
+
+    if (code) {
+      await supabase
+        .from('online_rooms')
+        .update({ status: 'finished' })
+        .eq('short_code', code)
+        .eq('status', 'waiting');
+    }
+  };
+  // =========================================================================
 
   const uniqueNats = useMemo(() => {
     const nats = new Set(MOCK_DECK.map(c => c.nationality));
@@ -76,12 +255,12 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
     </motion.button>
   );
 
-  const galleryContainerVariants = {
+  const galleryContainerVariants: Variants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.05 } }
   };
 
-  const galleryItemVariants = {
+  const galleryItemVariants: Variants = {
     hidden: { opacity: 0, y: 30, scale: 0.9 },
     show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
@@ -113,7 +292,7 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
           </motion.div>
         )}
 
-        {['main', 'quickplay', 'local', 'difficulty', 'online'].includes(screen) && (
+        {['main', 'quickplay', 'local', 'difficulty', 'online', 'join_room', 'waiting_room'].includes(screen) && (
           <motion.div key="menus" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="z-10 w-full max-w-md px-6 flex flex-col h-full justify-center">
             <div className="mb-12">
                <h2 className="text-4xl font-black italic tracking-tighter"><span className="text-white">FUT</span><span className="text-cyan-400">ARENA</span></h2>
@@ -135,7 +314,7 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
             {screen === 'quickplay' && (
               <motion.div className="flex flex-col gap-3">
                 <MenuButton title="LOCAL" subtitle="Vs CPU o 2 Jugadores" icon="🎮" onClick={() => setScreen('local')} />
-                <MenuButton title="ONLINE" subtitle="Salas privadas" icon="🌐" onClick={() => setScreen('online')} />
+                <MenuButton title="ONLINE" subtitle="Salas privadas con código" icon="🌐" onClick={() => setScreen('online')} />
                 <div className="h-px w-full bg-transparent my-2"></div>
                 <MenuButton title="VOLVER" icon="↩" onClick={() => setScreen('main')} />
               </motion.div>
@@ -165,10 +344,48 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
 
             {screen === 'online' && (
               <motion.div className="flex flex-col gap-3">
-                <MenuButton title="CREAR PARTIDA" icon="➕" onClick={() => {}} />
-                <MenuButton title="UNIRSE A PARTIDA" icon="🔗" onClick={() => {}} />
+                <MenuButton title="CREAR PARTIDA" subtitle="Genera un código de sala" icon="➕" onClick={handleCreateRoom} disabled={isLoading} />
+                <MenuButton title="UNIRSE A PARTIDA" subtitle="Ingresa el código de tu amigo" icon="🔗" onClick={() => setScreen('join_room')} disabled={isLoading} />
+                {onlineError && <p className="text-red-300 text-xs font-bold tracking-widest uppercase">{onlineError}</p>}
                 <div className="h-px w-full bg-transparent my-2"></div>
-                <MenuButton title="VOLVER" icon="↩" onClick={() => setScreen('quickplay')} />
+                <MenuButton title="VOLVER" icon="↩" onClick={() => setScreen('quickplay')} disabled={isLoading} />
+              </motion.div>
+            )}
+
+            {screen === 'join_room' && (
+              <motion.div className="flex flex-col gap-3">
+                <p className="text-cyan-400 font-bold tracking-widest text-xs uppercase mb-1">Ingresa el código</p>
+                <input 
+                  type="text" 
+                  value={joinCode} 
+                  onChange={(e) => setJoinCode(normalizeRoomCode(e.target.value))}
+                  maxLength={ROOM_CODE_LENGTH}
+                  placeholder="X7B9TQ"
+                  className="bg-black/50 border-2 border-cyan-500/50 text-white rounded-xl p-4 text-center text-3xl font-black uppercase tracking-[0.3em] outline-none focus:border-cyan-400 transition-colors"
+                />
+                {onlineError && <p className="text-red-300 text-xs font-bold tracking-widest uppercase">{onlineError}</p>}
+                <MenuButton title={isLoading ? "CONECTANDO..." : "ENTRAR A LA CANCHA"} icon="⚡" onClick={handleJoinRoom} disabled={normalizeRoomCode(joinCode).length < ROOM_CODE_LENGTH || isLoading} />
+                <div className="h-px w-full bg-transparent my-2"></div>
+                <MenuButton title="CANCELAR" icon="✖" onClick={() => setScreen('online')} disabled={isLoading} />
+              </motion.div>
+            )}
+
+            {screen === 'waiting_room' && (
+              <motion.div className="flex flex-col gap-3 items-center justify-center text-center">
+                <p className="text-cyan-400 font-bold tracking-widest text-xs uppercase mb-2">Pásale este código a tu rival</p>
+                <div className="bg-black/60 border border-white/20 rounded-xl p-6 mb-4 w-full shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]">
+                  <h1 className="text-5xl font-black tracking-[0.2em] text-white">{roomCode}</h1>
+                </div>
+                <motion.p 
+                  animate={{ opacity: [0.4, 1, 0.4] }} 
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="text-slate-400 text-sm font-medium tracking-wide"
+                >
+                  Esperando conexión del rival...
+                </motion.p>
+                {onlineError && <p className="text-red-300 text-xs font-bold tracking-widest uppercase">{onlineError}</p>}
+                <div className="h-px w-full bg-transparent my-4"></div>
+                <MenuButton title="CANCELAR SALA" icon="✖" onClick={handleCancelRoom} />
               </motion.div>
             )}
           </motion.div>
@@ -243,8 +460,6 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
               </div>
             </div>
 
-            {/* CORRECCIÓN DE PADDING: Se amplió drásticamente el padding inferior (pb-32) y superior (pt-6) 
-                para dar espacio físico a la sombra y el escalado de la carta en la última y primera fila */}
             <div className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto pt-6 px-4 pb-32 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black/20 [&::-webkit-scrollbar-thumb]:bg-cyan-500/50 [&::-webkit-scrollbar-thumb]:rounded-full">
               <motion.div 
                 variants={galleryContainerVariants}
@@ -256,12 +471,7 @@ export default function MainMenu({ initialScreen = 'boot', onStartMatch }: { ini
                   <div className="text-slate-400 mt-10 text-lg font-medium tracking-wide">No se encontraron cartas con esos filtros.</div>
                 ) : (
                   processedDeck.map(card => (
-                    <motion.div 
-                      key={card.id} 
-                      variants={galleryItemVariants} 
-                      // CORRECCIÓN VISUAL: Eliminada la propiedad style={{ contentVisibility: 'auto' }}
-                      className="relative group perspective-1000"
-                    >
+                    <motion.div key={card.id} variants={galleryItemVariants} className="relative group perspective-1000">
                       <Card card={card} isGalleryCard />
                     </motion.div>
                   ))

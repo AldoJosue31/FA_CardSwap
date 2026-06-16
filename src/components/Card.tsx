@@ -50,11 +50,23 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 } 
     : false;
 
+  // =======================================================================================
+  // ANIMACIONES DINÁMICAS (Aquí ocurre la magia de oscurecerse y hundirse en el turno del rival)
+  // =======================================================================================
   const animateProps = isBoardCard 
     ? { rotateX: [0, 180, 360], z: [0, 120, 0], scale: [1, 1.15, 1], opacity: 1, rotate: 0 } 
     : isDiscardCard 
     ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
-    : { x: 0, y: 0, scale: 1, opacity: 1, rotateX: 0, z: 0, rotate: 0 };
+    : { 
+        x: 0, 
+        y: disabled ? 40 : 0,                                                    // Se hunde 40px si no es tu turno
+        scale: disabled ? 0.92 : 1,                                              // Se encoge un 8%
+        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)", // Se pone gris y oscura
+        opacity: 1, 
+        rotateX: 0, 
+        z: 0, 
+        rotate: 0 
+      };
 
   const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
 
@@ -97,7 +109,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         transformStyle: "preserve-3d", 
         zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
         transform: "translateZ(0)",
-        willChange: "transform, opacity"
+        willChange: "transform, opacity, filter" // <-- Añadimos 'filter' para optimizar gráficos de la GPU
       }}
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
@@ -134,7 +146,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       {/* ================= CONTENEDOR FOTO + BANDERA ================= */}
       <div className="relative z-20 flex-1 my-2.5 w-full flex items-center justify-center">
         
-        {/* 1. CAJA DE LA BANDERA (Guillotina exclusiva para el fondo) */}
+        {/* 1. CAJA DE LA BANDERA */}
         <div className={`absolute inset-0 rounded-lg overflow-hidden ${isLegend ? 'bg-slate-800/50' : isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
           {card.nationality && flagCode !== 'xx' && (
             <div 
@@ -144,16 +156,12 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           )}
         </div>
 
-        {/* 2. IMAGEN DEL JUGADOR (Fuera de la guillotina para permitir Pop-out) */}
+        {/* 2. IMAGEN DEL JUGADOR */}
         {card.image && card.image.trim() !== '' ? (
           <img 
             src={getSupabaseImageUrl(card.image)} 
             alt={card.name} 
             loading={isGalleryCard ? "lazy" : "eager"}
-            // LA FÓRMULA FINAL: 
-            // w-[125%] ensancha al jugador.
-            // h-[112%] combinado con bottom-0 clava el torso exactamente en el límite inferior, 
-            // forzando a que ese 12% extra rompa suavemente el límite superior de la bandera.
             className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -165,7 +173,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           </div>
         )}
 
-        {/* 3. DEGRADADO INFERIOR (Cubre el pecho y tiene bordes redondeados para empatar con la caja) */}
+        {/* 3. DEGRADADO INFERIOR */}
         <div className="absolute inset-x-0 bottom-0 h-[45%] rounded-b-lg bg-gradient-to-t from-black/90 via-black/40 to-transparent z-30 pointer-events-none"></div>
         
       </div>

@@ -1,0 +1,378 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { CardData } from '../gameData';
+import { MOCK_DECK } from '../gameData';
+import { supabase } from '../supabaseClient';
+import { useDraftStore } from './draftStore';
+
+const HAND_SIZE = 4;
+const MATCH_DECK_SIZE = 11;
+
+type OnlineRole = 'host' | 'guest';
+type OnlineStatus = 'playing' | 'resolving' | 'gameover' | 'abandoned';
+
+export type OnlineSession = { roomCode: string; isHost: boolean };
+
+type OnlinePayload = {
+  role: OnlineRole;
+  roomCode: string;
+  cardId?: string;
+  round?: number;
+  deckIds?: string[];
+  hasOpponentDeck?: boolean;
+};
+
+type OnlineGameState = {
+  role: OnlineRole;
+  opponentRole: OnlineRole;
+  connected: boolean;
+  opponentReady: boolean;
+  currentTurn: OnlineRole | null;
+  round: number;
+  playerHand: CardData[];
+  playerDeck: CardData[];
+  playerDiscard: CardData[];
+  botHand: CardData[];
+  botDeck: CardData[];
+  botDiscard: CardData[];
+  playerBoardCard: CardData | null;
+  botBoardCard: CardData | null;
+  playerScore: number;
+  botScore: number;
+  status: OnlineStatus;
+  message: string;
+  playerWantsRematch: boolean;
+  opponentWantsRematch: boolean;
+};
+
+const otherRole = (role: OnlineRole): OnlineRole => (role === 'host' ? 'guest' : 'host');
+
+const shuffleArray = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
+
+const refillHand = (hand: CardData[], deck: CardData[]) => {
+  const nextHand = [...hand];
+  const nextDeck = [...deck];
+
+  while (nextHand.length < HAND_SIZE && nextDeck.length > 0) {
+    const drawnCard = nextDeck.shift();
+    if (drawnCard) nextHand.push(drawnCard);
+  }
+
+  return { hand: nextHand, deck: nextDeck };
+};
+
+const turnMessage = (state: Pick<OnlineGameState, 'role' | 'currentTurn' | 'connected' | 'opponentReady' | 'status'>) => {
+  if (state.status === 'abandoned') return 'EL RIVAL SE DESCONECTÓ';
+  if (!state.connected) return 'Conectando a la sala...';
+  if (!state.opponentReady) return 'Esperando al rival...';
+  return state.currentTurn === state.role ? 'Tu turno' : 'Turno del rival';
+};
+
+const createInitialState = (session: OnlineSession, localDeckIds: string[]): OnlineGameState => {
+  const role: OnlineRole = session.isHost ? 'host' : 'guest';
+  const opponentRole = otherRole(role);
+  
+  const playerCards = localDeckIds.map((baseId, index) => {
+    // CORRECCIÓN: Si el ID no existe, asignamos cartas variadas (index % length) en vez de siempre la [0]
+    const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
+    return {
+      ...card,
+      id: `${role}-${card.id}-${index}`,
+      owner: 'player' as 'player' | 'bot',
+    };
+  });
+
+  return {
+    role,
+    opponentRole,
+    connected: false,
+    opponentReady: false,
+    currentTurn: 'host',
+    round: 1,
+    playerHand: playerCards.slice(0, HAND_SIZE),
+    playerDeck: playerCards.slice(HAND_SIZE),
+    playerDiscard: [],
+    botHand: [],
+    botDeck: [],
+    botDiscard: [],
+    playerBoardCard: null,
+    botBoardCard: null,
+    playerScore: 0,
+    botScore: 0,
+    status: 'resolving',
+    message: 'Conectando a la sala...',
+    playerWantsRematch: false,
+    opponentWantsRematch: false,
+  };
+};
+
+const triggerRematch = (state: OnlineGameState): OnlineGameState => {
+  const allPlayer = [...state.playerHand, ...state.playerDeck, ...state.playerDiscard, ...(state.playerBoardCard ? [state.playerBoardCard] : [])];
+  const allBot = [...state.botHand, ...state.botDeck, ...state.botDiscard, ...(state.botBoardCard ? [state.botBoardCard] : [])];
+
+  const shuffledPlayer = shuffleArray(allPlayer);
+  const shuffledBot = shuffleArray(allBot);
+
+  const nextState: OnlineGameState = {
+    ...state,
+    round: 1,
+    playerScore: 0,
+    botScore: 0,
+    playerHand: shuffledPlayer.slice(0, HAND_SIZE),
+    playerDeck: shuffledPlayer.slice(HAND_SIZE),
+    playerDiscard: [],
+    botHand: shuffledBot.slice(0, HAND_SIZE),
+    botDeck: shuffledBot.slice(HAND_SIZE),
+    botDiscard: [],
+    playerBoardCard: null,
+    botBoardCard: null,
+    currentTurn: 'host',
+    status: 'playing',
+    playerWantsRematch: false,
+    opponentWantsRematch: false,
+    message: '¡NUEVA PARTIDA!',
+  };
+  return { ...nextState, message: turnMessage(nextState) };
+};
+
+const applyPlayedCard = (state: OnlineGameState, playedBy: OnlineRole, cardId: string, round: number): OnlineGameState => {
+  if (round !== state.round || state.status === 'gameover' || state.status === 'abandoned') return state;
+
+  const isLocal = playedBy === state.role;
+  const boardCard = isLocal ? state.playerBoardCard : state.botBoardCard;
+  const sourceHand = isLocal ? state.playerHand : state.botHand;
+  const card = sourceHand.find((item) => item.id === cardId);
+
+  if (boardCard || !card) return state;
+
+  const nextState: OnlineGameState = isLocal
+    ? {
+        ...state,
+        playerHand: state.playerHand.filter((item) => item.id !== cardId),
+        playerBoardCard: card,
+      }
+    : {
+        ...state,
+        botHand: state.botHand.filter((item) => item.id !== cardId),
+        botBoardCard: card,
+      };
+
+  if (nextState.playerBoardCard && nextState.botBoardCard) {
+    return {
+      ...nextState,
+      currentTurn: null,
+      status: 'resolving',
+      message: 'Resolviendo duelo...',
+    };
+  }
+
+  const nextTurn = otherRole(playedBy);
+  return {
+    ...nextState,
+    currentTurn: nextTurn,
+    status: 'playing',
+    message: nextTurn === state.role ? 'Tu turno' : 'Turno del rival',
+  };
+};
+
+export const useOnlineMatch = (session?: OnlineSession | null) => {
+  const [localDeckIds] = useState<string[]>(() => {
+    if (!session) return [];
+    const startingXI = useDraftStore.getState().startingXI;
+    
+    // CORRECCIÓN CLAVE: Verifica que el caché guardado sea compatible con la BD actual.
+    // Evita que te mande 11 cartas iguales si los IDs están rotos o desactualizados.
+    const isValidDraft = startingXI && 
+                         startingXI.length === MATCH_DECK_SIZE && 
+                         startingXI.every(draftCard => MOCK_DECK.some(mockCard => mockCard.id === draftCard.id));
+
+    const baseDeck = isValidDraft ? startingXI : MOCK_DECK.slice(0, MATCH_DECK_SIZE);
+    return [...baseDeck].sort(() => Math.random() - 0.5).map(c => c.id);
+  });
+
+  const [state, setState] = useState<OnlineGameState | null>(() => (session ? createInitialState(session, localDeckIds) : null));
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const stateRef = useRef<OnlineGameState | null>(state);
+  const acknowledgedRef = useRef(false);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    if (!session) {
+      setState(null);
+      return undefined;
+    }
+
+    const initialState = createInitialState(session, localDeckIds);
+    setState(initialState);
+    acknowledgedRef.current = false;
+
+    const channel = supabase
+      .channel(`online_match_${session.roomCode}`, {
+        config: { broadcast: { ack: true } },
+      })
+      .on('broadcast', { event: 'ready' }, ({ payload }) => {
+        const ready = payload as OnlinePayload;
+        if (ready.roomCode !== session.roomCode || ready.role === initialState.role) return;
+        if (ready.hasOpponentDeck) { acknowledgedRef.current = true; }
+
+        setState((current) => {
+          if (!current || current.opponentReady) return current;
+          const opponentDeckIds = ready.deckIds || [];
+          const opponentCards = opponentDeckIds.map((baseId, index) => {
+            // CORRECCIÓN: Prevención si el rival nos manda IDs rotos
+            const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
+            return { ...card, id: `${current.opponentRole}-${card.id}-${index}`, owner: 'bot' as 'player' | 'bot' };
+          });
+
+          const nextState = {
+            ...current,
+            opponentReady: true,
+            botHand: opponentCards.slice(0, HAND_SIZE),
+            botDeck: opponentCards.slice(HAND_SIZE),
+            status: current.playerBoardCard && current.botBoardCard ? current.status : 'playing',
+          };
+          return { ...nextState, message: turnMessage(nextState) };
+        });
+      })
+      .on('broadcast', { event: 'play_card' }, ({ payload }) => {
+        const play = payload as OnlinePayload;
+        if (!play.cardId || !play.round) return;
+        setState((current) => {
+          if (!current || play.roomCode !== session.roomCode || play.role !== current.opponentRole) return current;
+          return applyPlayedCard(current, play.role, play.cardId!, play.round!);
+        });
+      })
+      .on('broadcast', { event: 'rematch' }, ({ payload }) => {
+        const data = payload as OnlinePayload;
+        setState((current) => {
+          if (!current || data.roomCode !== session.roomCode || data.role !== current.opponentRole) return current;
+          const nextState = { ...current, opponentWantsRematch: true };
+          if (current.playerWantsRematch) return triggerRematch(nextState);
+          return nextState;
+        });
+      })
+      .on('broadcast', { event: 'leave' }, ({ payload }) => {
+        const data = payload as OnlinePayload;
+        setState((current) => {
+          if (!current || data.roomCode !== session.roomCode || data.role !== current.opponentRole) return current;
+          return { ...current, status: 'abandoned', message: 'EL RIVAL ABANDONÓ LA SALA' };
+        });
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setState((current) => {
+            if (!current) return current;
+            const nextState = { ...current, connected: true };
+            return { ...nextState, message: turnMessage(nextState) };
+          });
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setState((current) => (current ? { ...current, connected: false, status: 'abandoned', message: 'Conexion perdida con la sala.' } : current));
+        }
+      });
+
+    channelRef.current = channel;
+
+    const readyTimer = window.setInterval(() => {
+      if (!acknowledgedRef.current && channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'ready',
+          payload: { role: initialState.role, roomCode: session.roomCode, deckIds: localDeckIds, hasOpponentDeck: stateRef.current?.opponentReady },
+        });
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(readyTimer);
+      supabase.removeChannel(channel);
+      if (channelRef.current === channel) channelRef.current = null;
+    };
+  }, [session?.roomCode, session?.isHost]);
+
+  useEffect(() => {
+    if (!state?.playerBoardCard || !state.botBoardCard || state.status !== 'resolving') return undefined;
+
+    const resultTimer = window.setTimeout(() => {
+      setState((current) => {
+        if (!current?.playerBoardCard || !current.botBoardCard) return current;
+        const playerWins = current.playerBoardCard.atk > current.botBoardCard.atk;
+        const opponentWins = current.botBoardCard.atk > current.playerBoardCard.atk;
+        return {
+          ...current,
+          playerScore: playerWins ? current.playerScore + 1 : current.playerScore,
+          botScore: opponentWins ? current.botScore + 1 : current.botScore,
+          message: playerWins ? 'Ganaste el duelo' : opponentWins ? 'El rival gana el duelo' : 'Empate',
+        };
+      });
+
+      const cleanupTimer = window.setTimeout(() => {
+        setState((current) => {
+          if (!current?.playerBoardCard || !current.botBoardCard) return current;
+          const playerRefill = refillHand(current.playerHand, current.playerDeck);
+          const opponentRefill = refillHand(current.botHand, current.botDeck);
+          const nextRound = current.round + 1;
+          const nextTurn: OnlineRole = nextRound % 2 === 1 ? 'host' : 'guest';
+          const isGameOver = playerRefill.hand.length === 0 && playerRefill.deck.length === 0 && opponentRefill.hand.length === 0 && opponentRefill.deck.length === 0;
+
+          const nextState: OnlineGameState = {
+            ...current,
+            round: nextRound,
+            currentTurn: isGameOver ? null : nextTurn,
+            playerHand: playerRefill.hand,
+            playerDeck: playerRefill.deck,
+            playerDiscard: [...current.playerDiscard, current.playerBoardCard],
+            botHand: opponentRefill.hand,
+            botDeck: opponentRefill.deck,
+            botDiscard: [...current.botDiscard, current.botBoardCard],
+            playerBoardCard: null,
+            botBoardCard: null,
+            status: isGameOver ? 'gameover' : 'playing',
+          };
+          return { ...nextState, message: isGameOver ? 'FIN DEL PARTIDO' : turnMessage(nextState) };
+        });
+      }, 1400);
+
+      return () => window.clearTimeout(cleanupTimer);
+    }, 900);
+
+    return () => window.clearTimeout(resultTimer);
+  }, [state?.playerBoardCard?.id, state?.botBoardCard?.id, state?.status]);
+
+  const playCard = useCallback((card: CardData) => {
+    const current = stateRef.current;
+    const channel = channelRef.current;
+    if (!session || !current || !channel || !current.connected || !current.opponentReady || current.status !== 'playing' || current.currentTurn !== current.role || current.playerBoardCard || !current.playerHand.some((item) => item.id === card.id)) {
+      return;
+    }
+    setState((latest) => (latest ? applyPlayedCard(latest, current.role, card.id, current.round) : latest));
+    channel.send({ type: 'broadcast', event: 'play_card', payload: { role: current.role, roomCode: session.roomCode, cardId: card.id, round: current.round } });
+  }, [session]);
+
+  const requestRematch = useCallback(() => {
+    setState((current) => {
+      if (!current) return current;
+      const nextState = { ...current, playerWantsRematch: true };
+      if (current.opponentWantsRematch) return triggerRematch(nextState);
+      return nextState;
+    });
+    channelRef.current?.send({ type: 'broadcast', event: 'rematch', payload: { role: stateRef.current?.role, roomCode: session!.roomCode } });
+  }, [session]);
+
+  const leaveRoom = useCallback(() => {
+    if (channelRef.current && session) {
+      channelRef.current.send({ type: 'broadcast', event: 'leave', payload: { role: stateRef.current?.role, roomCode: session.roomCode } });
+    }
+  }, [session]);
+
+  return {
+    ...(state ?? createInitialState({ roomCode: session?.roomCode ?? 'ONLINE', isHost: true }, [])),
+    canPlay: Boolean(state?.connected && state.opponentReady && state.status === 'playing' && state.currentTurn === state.role && !state.playerBoardCard),
+    playCard,
+    requestRematch,
+    leaveRoom,
+  };
+};

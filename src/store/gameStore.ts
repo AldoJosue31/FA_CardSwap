@@ -34,7 +34,7 @@ const refillHand = (hand: CardData[], deck: CardData[]) => {
   return { hand: nextHand, deck: nextDeck };
 };
 
-const createMatchDeck = (cards: CardData[], prefix: string) =>
+const createMatchDeck = (cards: CardData[], prefix: 'player' | 'bot') =>
   cards.map((card, index) => ({
     ...card,
     id: `${prefix}-${card.id}-${index}`,
