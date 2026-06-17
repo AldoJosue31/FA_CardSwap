@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { DragEvent } from 'react';
+import { memo, type DragEvent } from 'react';
 import type { CardData } from '../gameData';
 
 interface CardProps {
@@ -17,7 +17,7 @@ const FLAG_MAP: Record<string, string> = {
   MEX: 'mx', ARG: 'ar', BRA: 'br', ESP: 'es', FRA: 'fr',
   POR: 'pt', ITA: 'it', GER: 'de', NED: 'nl', ENG: 'gb-eng',
   URU: 'uy', COL: 'co', SWE: 'se', CHI: 'cl', USA: 'us',
-  POL: 'pl'
+  POL: 'pl', NOR: 'no', BEL: 'be' // <-- Agregados Noruega (no) y Bélgica (be)
 };
 
 const BUCKET_NAME = "card-assets";
@@ -28,7 +28,7 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard }: CardProps) {
+function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard }: CardProps) {
   const isBot = card.owner === 'bot';
   const isLegend = card.isLegend; 
 
@@ -59,9 +59,9 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
     : { 
         x: 0, 
-        y: disabled ? 40 : 0,                                                    // Se hunde 40px si no es tu turno
-        scale: disabled ? 0.92 : 1,                                              // Se encoge un 8%
-        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)", // Se pone gris y oscura
+        y: disabled ? 40 : 0,                                                              // Se hunde 40px si no es tu turno
+        scale: disabled ? 0.92 : 1,                                                        // Se encoge un 8%
+        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)",  // Se pone gris y oscura
         opacity: 1, 
         rotateX: 0, 
         z: 0, 
@@ -69,6 +69,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       };
 
   const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
+  const hoverAnimation = { scale: 1.05, y: -20, zIndex: 50 };
 
   const bgClass = isLegend 
     ? 'bg-gradient-to-br from-slate-700 via-slate-800 to-[#111]' 
@@ -93,22 +94,26 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       layoutId={cardLayoutId}
       draggable={draggable}
       onDragStartCapture={onDragStart}
-      whileHover={canInteract ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
+      whileHover={canInteract ? hoverAnimation : {}}
       initial={initialDrawProps}
-      animate={animateProps}
-      transition={{
-        layout: { duration: 0.4, ease: "easeOut" },
-        rotate: { duration: 0.4, ease: "easeOut" },
-        rotateX: { duration: 0.4, ease: "linear" },
-        z: { duration: 0.4, ease: "easeInOut" },
-        x: { type: "spring", stiffness: 300, damping: 25 },
-        y: { type: "spring", stiffness: 300, damping: 25 },
-        default: { type: "spring", stiffness: 500, damping: 25 }
-      }}
+      animate={isGalleryCard ? undefined : animateProps}
+      transition={
+        isGalleryCard
+          ? undefined
+          : {
+              layout: { duration: 0.4, ease: "easeOut" },
+              rotate: { duration: 0.4, ease: "easeOut" },
+              rotateX: { duration: 0.4, ease: "linear" },
+              z: { duration: 0.4, ease: "easeInOut" },
+              x: { type: "spring", stiffness: 300, damping: 25 },
+              y: { type: "spring", stiffness: 300, damping: 25 },
+              default: { type: "spring", stiffness: 500, damping: 25 }
+            }
+      }
       style={{ 
         transformStyle: "preserve-3d", 
         zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
-        transform: "translateZ(0)",
+        transform: isGalleryCard ? undefined : "translateZ(0)",
         willChange: "transform, opacity, filter" // <-- Añadimos 'filter' para optimizar gráficos de la GPU
       }}
       onClick={!disabled ? onClick : undefined}
@@ -162,6 +167,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
             src={getSupabaseImageUrl(card.image)} 
             alt={card.name} 
             loading={isGalleryCard ? "lazy" : "eager"}
+            decoding="async"
             className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -192,3 +198,5 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     </motion.div>
   );
 }
+
+export default memo(Card);

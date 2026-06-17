@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import MainMenu from './pages/MainMenu';
+import type { MenuScreen } from './pages/MainMenu/types';
 import Match from './pages/Match';
 
 // Añadimos 'online' como una de las pantallas de entrada válidas
-type MenuEntryScreen = 'boot' | 'difficulty' | 'online';
+type MenuEntryScreen = Extract<MenuScreen, 'boot' | 'difficulty' | 'online'>;
 type OnlineSession = { roomCode: string; isHost: boolean };
 
 export default function App() {
@@ -41,8 +42,7 @@ export default function App() {
     <>
       {currentView === 'menu' && (
         <MainMenu 
-          // Forzamos el tipado por la compatibilidad con el tipo amplio de MainMenu
-          initialScreen={menuEntryScreen as any} 
+          initialScreen={menuEntryScreen} 
           onStartMatch={handleStartMatch} 
           onStartOnlineMatch={handleStartOnlineMatch} 
         />
