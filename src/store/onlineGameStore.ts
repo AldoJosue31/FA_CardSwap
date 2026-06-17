@@ -3,7 +3,6 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { CardData } from '../gameData';
 import { MOCK_DECK } from '../gameData';
 import { supabase } from '../supabaseClient';
-import { useDraftStore } from './draftStore';
 
 const HAND_SIZE = 4;
 const MATCH_DECK_SIZE = 11;
@@ -18,9 +17,8 @@ type OnlinePayload = {
   roomCode: string;
   cardId?: string;
   round?: number;
-  deckIds?: string[];
   hasOpponentDeck?: boolean;
-  username?: string; // ACTUALIZADO: Permite enviar el nombre
+  username?: string;
 };
 
 type OnlineGameState = {
@@ -44,14 +42,48 @@ type OnlineGameState = {
   message: string;
   playerWantsRematch: boolean;
   opponentWantsRematch: boolean;
-  playerUsername: string;   // NUEVO
-  opponentUsername: string; // NUEVO
-  showIntro: boolean;       // NUEVO: Control de la animación inicial VS
+  playerUsername: string;
+  opponentUsername: string;
+  showIntro: boolean;
 };
 
 const otherRole = (role: OnlineRole): OnlineRole => (role === 'host' ? 'guest' : 'host');
 
 const shuffleArray = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
+
+// =========================================================================
+// FUNCIONES DE SEMILLA: Generan la misma repartición en ambas computadoras
+// =========================================================================
+const hashSeed = (seed: string) => {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const seededRandom = (seed: string) => {
+  let state = hashSeed(seed);
+  return () => {
+    state += 0x6d2b79f5;
+    let next = state;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const shuffleWithSeed = (array: CardData[], seed: string) => {
+  const random = seededRandom(seed);
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+// =========================================================================
 
 const refillHand = (hand: CardData[], deck: CardData[]) => {
   const nextHand = [...hand];
@@ -72,17 +104,18 @@ const turnMessage = (state: Pick<OnlineGameState, 'role' | 'currentTurn' | 'conn
   return state.currentTurn === state.role ? 'Tu turno' : 'Turno del rival';
 };
 
-const createInitialState = (session: OnlineSession, localDeckIds: string[]): OnlineGameState => {
+const createInitialState = (session: OnlineSession): OnlineGameState => {
   const role: OnlineRole = session.isHost ? 'host' : 'guest';
   const opponentRole = otherRole(role);
   
-  const playerCards = localDeckIds.map((baseId, index) => {
-    const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
-    return {
-      ...card,
-      id: `${role}-${card.id}-${index}`,
-      owner: 'player' as 'player' | 'bot',
-    };
+  // MAGIA: Ambos jugadores usan el Room Code para mezclar las 22 cartas exactamente igual
+  const globalShuffled = shuffleWithSeed(MOCK_DECK, session.roomCode);
+  
+  // El Host se queda la primera mitad, el Guest la segunda (Cero cartas repetidas)
+  const myBaseCards = session.isHost ? globalShuffled.slice(0, MATCH_DECK_SIZE) : globalShuffled.slice(MATCH_DECK_SIZE, MATCH_DECK_SIZE * 2);
+
+  const playerCards = myBaseCards.map((card, index) => {
+    return { ...card, id: `${role}-${card.id}-${index}`, owner: 'player' as 'player' | 'bot' };
   });
 
   return {
@@ -137,7 +170,7 @@ const triggerRematch = (state: OnlineGameState): OnlineGameState => {
     playerWantsRematch: false,
     opponentWantsRematch: false,
     message: '¡NUEVA PARTIDA!',
-    showIntro: true, // Repetir intro al revancha
+    showIntro: true,
   };
   return { ...nextState, message: turnMessage(nextState) };
 };
@@ -183,17 +216,7 @@ const applyPlayedCard = (state: OnlineGameState, playedBy: OnlineRole, cardId: s
 };
 
 export const useOnlineMatch = (session?: OnlineSession | null) => {
-  const [localDeckIds] = useState<string[]>(() => {
-    if (!session) return [];
-    const startingXI = useDraftStore.getState().startingXI;
-    const isValidDraft = startingXI && 
-                         startingXI.length === MATCH_DECK_SIZE && 
-                         startingXI.every(draftCard => MOCK_DECK.some(mockCard => mockCard.id === draftCard.id));
-    const baseDeck = isValidDraft ? startingXI : MOCK_DECK.slice(0, MATCH_DECK_SIZE);
-    return [...baseDeck].sort(() => Math.random() - 0.5).map(c => c.id);
-  });
-
-  const [state, setState] = useState<OnlineGameState | null>(() => (session ? createInitialState(session, localDeckIds) : null));
+  const [state, setState] = useState<OnlineGameState | null>(() => (session ? createInitialState(session) : null));
   const channelRef = useRef<RealtimeChannel | null>(null);
   const stateRef = useRef<OnlineGameState | null>(state);
   const acknowledgedRef = useRef(false);
@@ -202,7 +225,6 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
     stateRef.current = state;
   }, [state]);
 
-  // NUEVO: Temporizador para quitar la pantalla de VS después de 3.5 segundos
   useEffect(() => {
     if (state?.opponentReady && state.showIntro) {
       const timer = setTimeout(() => {
@@ -218,7 +240,7 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
       return undefined;
     }
 
-    const initialState = createInitialState(session, localDeckIds);
+    const initialState = createInitialState(session);
     setState(initialState);
     acknowledgedRef.current = false;
 
@@ -233,16 +255,19 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
 
         setState((current) => {
           if (!current || current.opponentReady) return current;
-          const opponentDeckIds = ready.deckIds || [];
-          const opponentCards = opponentDeckIds.map((baseId, index) => {
-            const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
+          
+          // Obtenemos las cartas del oponente usando la misma semilla
+          const globalShuffled = shuffleWithSeed(MOCK_DECK, session.roomCode);
+          const opponentBaseCards = current.role === 'host' ? globalShuffled.slice(MATCH_DECK_SIZE, MATCH_DECK_SIZE * 2) : globalShuffled.slice(0, MATCH_DECK_SIZE);
+
+          const opponentCards = opponentBaseCards.map((card, index) => {
             return { ...card, id: `${current.opponentRole}-${card.id}-${index}`, owner: 'bot' as 'player' | 'bot' };
           });
 
           const nextState = {
             ...current,
             opponentReady: true,
-            opponentUsername: ready.username || 'RIVAL', // NUEVO: Extraemos el nombre
+            opponentUsername: ready.username || 'RIVAL',
             botHand: opponentCards.slice(0, HAND_SIZE),
             botDeck: opponentCards.slice(HAND_SIZE),
             status: current.playerBoardCard && current.botBoardCard ? current.status : 'playing',
@@ -297,9 +322,8 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           payload: { 
             role: initialState.role, 
             roomCode: session.roomCode, 
-            deckIds: localDeckIds, 
             hasOpponentDeck: stateRef.current?.opponentReady,
-            username: session.username // NUEVO: Enviamos el nombre local por la red
+            username: session.username
           },
         });
       }
@@ -365,7 +389,6 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
     const current = stateRef.current;
     const channel = channelRef.current;
     
-    // ACTUALIZADO: Bloquea las jugadas si la animación inicial está en pantalla (!current.showIntro)
     if (!session || !current || !channel || !current.connected || !current.opponentReady || current.showIntro || current.status !== 'playing' || current.currentTurn !== current.role || current.playerBoardCard || !current.playerHand.some((item) => item.id === card.id)) {
       return;
     }
@@ -391,7 +414,7 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   }, [session]);
 
   return {
-    ...(state ?? createInitialState({ roomCode: session?.roomCode ?? 'ONLINE', isHost: true, username: 'Player' }, [])),
+    ...(state ?? createInitialState({ roomCode: session?.roomCode ?? 'ONLINE', isHost: true, username: 'Player' })),
     canPlay: Boolean(state?.connected && state.opponentReady && !state?.showIntro && state.status === 'playing' && state.currentTurn === state.role && !state.playerBoardCard),
     playCard,
     requestRematch,

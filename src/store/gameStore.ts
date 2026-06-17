@@ -38,7 +38,7 @@ const createMatchDeck = (cards: CardData[], prefix: 'player' | 'bot') =>
   cards.map((card, index) => ({
     ...card,
     id: `${prefix}-${card.id}-${index}`,
-    owner: prefix,
+    owner: prefix as 'player' | 'bot',
   }));
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -52,9 +52,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   initGame: (diff) => {
     const shuffle = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
     
-    // Repartimos 11 cartas aleatorias de todo el mazo para cada jugador
-    const shuffledPlayerCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'player');
-    const shuffledBotCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'bot');
+    // MAGIA: Mezclamos todas las cartas disponibles UNA sola vez.
+    // El jugador toma las primeras 11, el bot las siguientes 11.
+    // Así aseguramos que nunca tengan cartas repetidas en el mismo partido.
+    const allShuffled = shuffle([...MOCK_DECK]);
+    const shuffledPlayerCards = createMatchDeck(allShuffled.slice(0, 11), 'player');
+    const shuffledBotCards = createMatchDeck(allShuffled.slice(11, 22), 'bot');
 
     set({
       difficulty: diff,
@@ -85,7 +88,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     setTimeout(() => {
       let botCard: CardData;
 
-      // Inteligencia Artificial del CPU
       if (difficulty === 'Fácil') {
         botCard = botHand[Math.floor(Math.random() * botHand.length)];
       } else if (difficulty === 'Normal') {
