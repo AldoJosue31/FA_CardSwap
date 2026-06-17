@@ -11,14 +11,14 @@ interface CardProps {
   isBoardCard?: boolean;
   isDiscardCard?: boolean;
   isGalleryCard?: boolean;
-  isHidden?: boolean; // NUEVO: Controla si la carta está boca abajo
+  isHidden?: boolean; 
 }
 
 const FLAG_MAP: Record<string, string> = {
   MEX: 'mx', ARG: 'ar', BRA: 'br', ESP: 'es', FRA: 'fr',
   POR: 'pt', ITA: 'it', GER: 'de', NED: 'nl', ENG: 'gb-eng',
   URU: 'uy', COL: 'co', SWE: 'se', CHI: 'cl', USA: 'us',
-  POL: 'pl'
+  POL: 'pl', NOR: 'no', BEL: 'be', CRO: 'hr', MAR: 'hr' // Añadidos Noruega (no) y Bélgica (be)
 };
 
 const BUCKET_NAME = "card-assets";

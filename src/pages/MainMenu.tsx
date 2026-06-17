@@ -7,6 +7,14 @@ import { supabase } from '../supabaseClient';
 
 const ROOM_CODE_LENGTH = 6;
 
+// NUEVO: Diccionario para darle peso a cada posición (Orden de la cancha)
+const POS_WEIGHT: Record<string, number> = {
+  'POR': 1,
+  'DEF': 2,
+  'MED': 3,
+  'DEL': 4
+};
+
 type OnlineRoom = {
   short_code: string;
   status: 'waiting' | 'playing' | 'finished';
@@ -41,16 +49,16 @@ export default function MainMenu({
 
   const [posFilter, setPosFilter] = useState('ALL');
   const [natFilter, setNatFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState('NONE');
+  
+  // ACTUALIZADO: El orden por defecto ahora es 'POS' (Por Posición)
+  const [sortBy, setSortBy] = useState('POS');
 
-  // --- ESTADOS PARA MULTIJUGADOR ONLINE ---
   const [joinCode, setJoinCode] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [onlineError, setOnlineError] = useState('');
   const roomChannelRef = useRef<RealtimeChannel | null>(null);
 
-  // ACTUALIZADO: Estado del nombre guardado en caché
   const [username, setUsername] = useState(() => localStorage.getItem('futarena_username') || '');
 
   useEffect(() => {
@@ -77,7 +85,6 @@ export default function MainMenu({
     };
   }, [screen]);
 
-  // ================= LÓGICA ONLINE CON SUPABASE REALTIME =================
   useEffect(() => {
     return () => {
       if (roomChannelRef.current) {
@@ -98,7 +105,6 @@ export default function MainMenu({
     clearRoomSubscription();
     setIsLoading(false);
     
-    // Guardamos el nombre en el navegador
     localStorage.setItem('futarena_username', username.trim());
     if (onStartOnlineMatch) onStartOnlineMatch(code, isHost, username.trim() || 'JUGADOR');
   };
@@ -222,7 +228,6 @@ export default function MainMenu({
         .eq('status', 'waiting');
     }
   };
-  // =========================================================================
 
   const uniqueNats = useMemo(() => {
     const nats = new Set(MOCK_DECK.map(c => c.nationality));
@@ -235,10 +240,18 @@ export default function MainMenu({
     if (posFilter !== 'ALL') deck = deck.filter(c => c.pos === posFilter);
     if (natFilter !== 'ALL') deck = deck.filter(c => c.nationality === natFilter);
 
-    if (sortBy === 'ATK_DESC') deck.sort((a, b) => b.atk - a.atk);
-    if (sortBy === 'ATK_ASC') deck.sort((a, b) => a.atk - b.atk);
-    if (sortBy === 'DEF_DESC') deck.sort((a, b) => b.def - a.def);
-    if (sortBy === 'DEF_ASC') deck.sort((a, b) => a.def - b.def);
+    // ACTUALIZADO: Si está seleccionado 'POS', usa nuestro diccionario para ordenar
+    if (sortBy === 'POS') {
+      deck.sort((a, b) => (POS_WEIGHT[a.pos] || 99) - (POS_WEIGHT[b.pos] || 99));
+    } else if (sortBy === 'ATK_DESC') {
+      deck.sort((a, b) => b.atk - a.atk);
+    } else if (sortBy === 'ATK_ASC') {
+      deck.sort((a, b) => a.atk - b.atk);
+    } else if (sortBy === 'DEF_DESC') {
+      deck.sort((a, b) => b.def - a.def);
+    } else if (sortBy === 'DEF_ASC') {
+      deck.sort((a, b) => a.def - b.def);
+    }
 
     return deck;
   }, [posFilter, natFilter, sortBy]);
@@ -348,7 +361,6 @@ export default function MainMenu({
               </motion.div>
             )}
 
-            {/* ACTUALIZADO: Pantalla Online ahora tiene Input */}
             {screen === 'online' && (
               <motion.div className="flex flex-col gap-3">
                 <p className="text-cyan-400 font-bold tracking-widest text-xs uppercase mb-1">Nombre de Entrenador</p>
@@ -491,12 +503,13 @@ export default function MainMenu({
 
               <div className="flex-1 min-w-[180px]">
                 <label className="block text-[10px] text-cyan-400 font-bold tracking-widest mb-1">ORDENAR POR</label>
+                {/* ACTUALIZADO: El Value por defecto ahora es POS */}
                 <select 
                   value={sortBy} 
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full bg-slate-900 border border-white/10 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-cyan-500 transition-colors"
                 >
-                  <option value="NONE">Por Defecto</option>
+                  <option value="POS">Por Posición (Defecto)</option>
                   <option value="ATK_DESC">Mayor Ataque</option>
                   <option value="ATK_ASC">Menor Ataque</option>
                   <option value="DEF_DESC">Mayor Defensa</option>
