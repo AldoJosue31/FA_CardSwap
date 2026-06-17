@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
 import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
@@ -17,11 +17,15 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const { playerHand, playerDeck, playerDiscard, botHand, botDeck, botDiscard, playerBoardCard, botBoardCard, playerScore, botScore, status, message, playCard } = activeGame;
   const { initGame } = localGame;
 
-  // Extraemos las nuevas funciones de revancha y desconexión seguras
   const playerWantsRematch = (activeGame as any).playerWantsRematch || false;
   const opponentWantsRematch = (activeGame as any).opponentWantsRematch || false;
   const requestRematch = (activeGame as any).requestRematch || (() => {});
   const leaveRoom = (activeGame as any).leaveRoom || (() => {});
+  
+  // NUEVO: Verificadores para la pantalla de VS
+  const playerUsername = isOnlineMatch && (activeGame as any).playerUsername ? (activeGame as any).playerUsername : 'TÚ';
+  const opponentUsername = isOnlineMatch && (activeGame as any).opponentUsername ? (activeGame as any).opponentUsername : 'BOT';
+  const showIntro = isOnlineMatch && (activeGame as any).showIntro && (activeGame as any).opponentReady;
 
   useEffect(() => {
     setIsPaused(false);
@@ -33,7 +37,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
     if (!isOnlineMatch && status === 'gameover' && playerScore > botScore && difficulty) {
       const currentLevelIndex = DIFFICULTIES.indexOf(difficulty);
       const savedLevel = parseInt(localStorage.getItem('futarena_unlocked_level') || '1', 10);
-      
       if (currentLevelIndex >= savedLevel && currentLevelIndex < 3) {
         localStorage.setItem('futarena_unlocked_level', (currentLevelIndex + 1).toString());
       }
@@ -47,13 +50,58 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const currentLevelIndex = DIFFICULTIES.indexOf(difficulty || 'Normal');
   const hasNextLevel = !isOnlineMatch && currentLevelIndex >= 0 && currentLevelIndex < 3;
   const nextDifficulty = hasNextLevel ? DIFFICULTIES[currentLevelIndex + 1] : null;
-  const playerLabel = onlineSession?.isHost ? 'HOST' : isOnlineMatch ? 'INVITADO' : 'TÚ';
-  const rivalLabel = isOnlineMatch ? 'RIVAL' : 'BOT';
-  const statusMessage = isOnlineMatch && onlineSession ? `${playerLabel} ${onlineSession.roomCode} - ${message}` : message;
+
+  const playerLabel = playerUsername;
+  const rivalLabel = opponentUsername;
+  const statusMessage = isOnlineMatch && onlineSession ? `${onlineSession.roomCode} - ${message}` : message;
 
   return (
     <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
       
+      {/* ================= ANIMACIÓN VS (INTRO DEL PARTIDO) ================= */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div 
+            className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.5 } }}
+          >
+             <motion.div 
+               initial={{ x: -300, opacity: 0 }} 
+               animate={{ x: 0, opacity: 1 }} 
+               transition={{ type: 'spring', damping: 20, delay: 0.1 }}
+               className="flex-1 flex items-center justify-center md:justify-end md:pr-16"
+             >
+               <h2 className="text-4xl md:text-7xl font-black text-cyan-400 tracking-tighter uppercase truncate drop-shadow-[0_0_30px_rgba(34,211,238,0.5)]">
+                 {playerLabel}
+               </h2>
+             </motion.div>
+
+             <motion.div 
+               initial={{ scale: 0, opacity: 0, rotate: -180 }} 
+               animate={{ scale: 1, opacity: 1, rotate: 0 }} 
+               transition={{ type: 'spring', bounce: 0.6, delay: 0.5 }}
+               className="text-6xl md:text-8xl font-black italic text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10 my-8 md:my-0"
+             >
+               VS
+             </motion.div>
+
+             <motion.div 
+               initial={{ x: 300, opacity: 0 }} 
+               animate={{ x: 0, opacity: 1 }} 
+               transition={{ type: 'spring', damping: 20, delay: 0.3 }}
+               className="flex-1 flex items-center justify-center md:justify-start md:pl-16"
+             >
+               <h2 className="text-4xl md:text-7xl font-black text-red-500 tracking-tighter uppercase truncate drop-shadow-[0_0_30px_rgba(239,68,68,0.5)]">
+                 {rivalLabel}
+               </h2>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ==================================================================== */}
+
       {/* Fondos y Texturas */}
       <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px), radial-gradient(circle at center, #26733a 0%, #143d22 100%)` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
@@ -110,7 +158,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <header className="relative z-10 flex justify-center pt-4 shrink-0 pointer-events-none">
         <div className="bg-black/60 backdrop-blur-lg border border-white/10 px-6 md:px-10 py-2 md:py-3 rounded-full flex gap-8 md:gap-16 items-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] pointer-events-auto">
-          <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-tighter">TÚ: {playerScore}</div>
+          <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-tighter">{playerLabel}: {playerScore}</div>
           <div className="text-[10px] md:text-xs font-medium tracking-[0.2em] text-slate-300 uppercase">{statusMessage}</div>
           <div className="text-xl md:text-3xl font-black text-red-500 tracking-tighter">{rivalLabel}: {botScore}</div>
         </div>
@@ -178,18 +226,41 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
             )}
           </div>
           
-          {/* Pantalla de ayuda se mantiene igual, la corté para no hacerlo inmenso pero puedes dejarla como la tenías */}
+          {isHelpOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center px-6 z-10"
+            >
+              <div className="w-full max-w-md rounded-2xl border border-cyan-400/30 bg-slate-950/95 p-6 md:p-8 shadow-[0_0_45px_rgba(34,211,238,0.18)]">
+                <p className="text-xs text-cyan-300 font-bold tracking-[0.35em] uppercase mb-2">GUIA RAPIDA</p>
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white mb-5">COMO JUGAR</h2>
+                <div className="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
+                  <p>Elige una carta de tu mano. Cuando la tiras, el CPU responde con una sola carta.</p>
+                  <p>Cuando ambas cartas estan en la cancha, se comparan sus puntos de ATK.</p>
+                  <p>La carta con mayor ATK gana el duelo y suma 1 punto. Si empatan, nadie suma.</p>
+                  <p>Gana la partida quien tenga mas puntos cuando se acaben las cartas.</p>
+                </div>
+                <button
+                  onClick={() => setIsHelpOpen(false)}
+                  className="mt-7 w-full py-4 bg-cyan-500 text-black rounded-xl text-lg font-black transition-all hover:scale-105 shadow-[0_0_30px_rgba(34,211,238,0.35)]"
+                >
+                  ENTENDIDO
+                </button>
+              </div>
+            </motion.div>
+          )}
         </div>
       )}
 
-      {/* PANTALLA FIN DE JUEGO O DESCONEXIÓN */}
       {(status === 'gameover' || status === 'abandoned') && (
         <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center z-50">
           
           {status === 'abandoned' ? (
              <>
                <h1 className="text-5xl md:text-6xl font-black mb-4 uppercase tracking-tighter text-center text-red-500 drop-shadow-[0_0_50px_rgba(239,68,68,0.6)]">CONEXIÓN PERDIDA</h1>
-               <p className="text-lg md:text-xl text-slate-300 font-bold tracking-[0.2em] mb-10 uppercase text-center">EL RIVAL ABANDONÓ LA SALA</p>
+               <p className="text-lg md:text-xl text-slate-300 font-bold tracking-[0.2em] mb-10 uppercase text-center">{rivalLabel} ABANDONÓ LA SALA</p>
              </>
           ) : (
              <>
@@ -209,8 +280,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
           )}
 
           <div className="flex flex-col gap-4 w-full max-w-sm px-6">
-            
-            {/* LÓGICA BOTÓN REVANCHA (ONLINE) */}
             {isOnlineMatch && status === 'gameover' && (
               <>
                 <button 
@@ -226,7 +295,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               </>
             )}
 
-            {/* BOTÓN JUGAR SIGUIENTE NIVEL (MODO CPU) */}
             {!isOnlineMatch && isWin && hasNextLevel && onNextLevel && (
               <button 
                 onClick={() => onNextLevel(nextDifficulty!)}
@@ -236,7 +304,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               </button>
             )}
             
-            {/* BOTÓN REINTENTAR (MODO CPU) */}
             {!isOnlineMatch && status === 'gameover' && (
               <button 
                 onClick={() => initGame(difficulty || 'Normal')}
@@ -246,12 +313,11 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               </button>
             )}
 
-            {/* EL BOTÓN SALIR DEFINITIVO */}
             {onReturnToMenu && (
               <button 
                 onClick={() => {
-                  if (isOnlineMatch) leaveRoom(); // <-- AQUÍ avisamos a la base de datos de que salimos
-                  onReturnToMenu();               // <-- AQUÍ regresamos limpio al menú principal
+                  if (isOnlineMatch) leaveRoom();
+                  onReturnToMenu();
                 }}
                 className="w-full py-4 bg-transparent text-slate-400 rounded-xl text-sm font-bold tracking-widest uppercase transition-all hover:text-white"
               >

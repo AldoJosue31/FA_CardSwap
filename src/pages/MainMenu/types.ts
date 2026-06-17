@@ -21,5 +21,6 @@ export type OnlineRoom = {
 export type MainMenuProps = {
   initialScreen?: MenuScreen;
   onStartMatch?: (diff: string) => void;
-  onStartOnlineMatch?: (roomId: string, isHost: boolean) => void;
+  // ACTUALIZADO: Ahora pide el username
+  onStartOnlineMatch?: (roomId: string, isHost: boolean, username: string) => void;
 };

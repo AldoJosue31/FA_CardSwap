@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import MainMenu from './pages/MainMenu';
-import type { MenuScreen } from './pages/MainMenu/types';
 import Match from './pages/Match';
 
-// Añadimos 'online' como una de las pantallas de entrada válidas
-type MenuEntryScreen = Extract<MenuScreen, 'boot' | 'difficulty' | 'online'>;
-type OnlineSession = { roomCode: string; isHost: boolean };
+type MenuEntryScreen = 'boot' | 'difficulty' | 'online';
+
+// ACTUALIZADO: Añadimos el username a la sesión online
+export type OnlineSession = { roomCode: string; isHost: boolean; username: string };
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'menu' | 'match'>('menu');
@@ -19,21 +19,18 @@ export default function App() {
     setCurrentView('match');
   };
 
-  const handleStartOnlineMatch = (roomCode: string, isHost: boolean) => {
-    setOnlineSession({ roomCode, isHost });
+  const handleStartOnlineMatch = (roomCode: string, isHost: boolean, username: string) => {
+    setOnlineSession({ roomCode, isHost, username });
     setSelectedDifficulty('Online');
     setCurrentView('match');
   };
 
-  // CORRECCIÓN: Función inteligente que sabe de qué modo de juego vienes
   const handleReturnToMenu = () => {
     if (onlineSession) {
-      setMenuEntryScreen('online'); // Regresamos al menú multijugador
+      setMenuEntryScreen('online');
     } else {
-      setMenuEntryScreen('difficulty'); // Regresamos al menú local (CPU)
+      setMenuEntryScreen('difficulty');
     }
-    
-    // Limpiamos la sesión HASTA DESPUÉS de haber leído de dónde veníamos
     setOnlineSession(null);
     setCurrentView('menu');
   };
@@ -42,7 +39,7 @@ export default function App() {
     <>
       {currentView === 'menu' && (
         <MainMenu 
-          initialScreen={menuEntryScreen} 
+          initialScreen={menuEntryScreen as any} 
           onStartMatch={handleStartMatch} 
           onStartOnlineMatch={handleStartOnlineMatch} 
         />

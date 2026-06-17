@@ -11,7 +11,7 @@ const MATCH_DECK_SIZE = 11;
 type OnlineRole = 'host' | 'guest';
 type OnlineStatus = 'playing' | 'resolving' | 'gameover' | 'abandoned';
 
-export type OnlineSession = { roomCode: string; isHost: boolean };
+export type OnlineSession = { roomCode: string; isHost: boolean; username: string };
 
 type OnlinePayload = {
   role: OnlineRole;
@@ -20,6 +20,7 @@ type OnlinePayload = {
   round?: number;
   deckIds?: string[];
   hasOpponentDeck?: boolean;
+  username?: string; // ACTUALIZADO: Permite enviar el nombre
 };
 
 type OnlineGameState = {
@@ -43,6 +44,9 @@ type OnlineGameState = {
   message: string;
   playerWantsRematch: boolean;
   opponentWantsRematch: boolean;
+  playerUsername: string;   // NUEVO
+  opponentUsername: string; // NUEVO
+  showIntro: boolean;       // NUEVO: Control de la animación inicial VS
 };
 
 const otherRole = (role: OnlineRole): OnlineRole => (role === 'host' ? 'guest' : 'host');
@@ -73,7 +77,6 @@ const createInitialState = (session: OnlineSession, localDeckIds: string[]): Onl
   const opponentRole = otherRole(role);
   
   const playerCards = localDeckIds.map((baseId, index) => {
-    // CORRECCIÓN: Si el ID no existe, asignamos cartas variadas (index % length) en vez de siempre la [0]
     const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
     return {
       ...card,
@@ -103,6 +106,9 @@ const createInitialState = (session: OnlineSession, localDeckIds: string[]): Onl
     message: 'Conectando a la sala...',
     playerWantsRematch: false,
     opponentWantsRematch: false,
+    playerUsername: session.username,
+    opponentUsername: 'RIVAL',
+    showIntro: true,
   };
 };
 
@@ -131,6 +137,7 @@ const triggerRematch = (state: OnlineGameState): OnlineGameState => {
     playerWantsRematch: false,
     opponentWantsRematch: false,
     message: '¡NUEVA PARTIDA!',
+    showIntro: true, // Repetir intro al revancha
   };
   return { ...nextState, message: turnMessage(nextState) };
 };
@@ -179,13 +186,9 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   const [localDeckIds] = useState<string[]>(() => {
     if (!session) return [];
     const startingXI = useDraftStore.getState().startingXI;
-    
-    // CORRECCIÓN CLAVE: Verifica que el caché guardado sea compatible con la BD actual.
-    // Evita que te mande 11 cartas iguales si los IDs están rotos o desactualizados.
     const isValidDraft = startingXI && 
                          startingXI.length === MATCH_DECK_SIZE && 
                          startingXI.every(draftCard => MOCK_DECK.some(mockCard => mockCard.id === draftCard.id));
-
     const baseDeck = isValidDraft ? startingXI : MOCK_DECK.slice(0, MATCH_DECK_SIZE);
     return [...baseDeck].sort(() => Math.random() - 0.5).map(c => c.id);
   });
@@ -198,6 +201,16 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // NUEVO: Temporizador para quitar la pantalla de VS después de 3.5 segundos
+  useEffect(() => {
+    if (state?.opponentReady && state.showIntro) {
+      const timer = setTimeout(() => {
+        setState(s => s ? { ...s, showIntro: false } : null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [state?.opponentReady, state?.showIntro]);
 
   useEffect(() => {
     if (!session) {
@@ -222,7 +235,6 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           if (!current || current.opponentReady) return current;
           const opponentDeckIds = ready.deckIds || [];
           const opponentCards = opponentDeckIds.map((baseId, index) => {
-            // CORRECCIÓN: Prevención si el rival nos manda IDs rotos
             const card = MOCK_DECK.find((c) => c.id === baseId) || MOCK_DECK[index % MOCK_DECK.length];
             return { ...card, id: `${current.opponentRole}-${card.id}-${index}`, owner: 'bot' as 'player' | 'bot' };
           });
@@ -230,6 +242,7 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           const nextState = {
             ...current,
             opponentReady: true,
+            opponentUsername: ready.username || 'RIVAL', // NUEVO: Extraemos el nombre
             botHand: opponentCards.slice(0, HAND_SIZE),
             botDeck: opponentCards.slice(HAND_SIZE),
             status: current.playerBoardCard && current.botBoardCard ? current.status : 'playing',
@@ -281,7 +294,13 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
         channelRef.current.send({
           type: 'broadcast',
           event: 'ready',
-          payload: { role: initialState.role, roomCode: session.roomCode, deckIds: localDeckIds, hasOpponentDeck: stateRef.current?.opponentReady },
+          payload: { 
+            role: initialState.role, 
+            roomCode: session.roomCode, 
+            deckIds: localDeckIds, 
+            hasOpponentDeck: stateRef.current?.opponentReady,
+            username: session.username // NUEVO: Enviamos el nombre local por la red
+          },
         });
       }
     }, 1000);
@@ -291,7 +310,7 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
       supabase.removeChannel(channel);
       if (channelRef.current === channel) channelRef.current = null;
     };
-  }, [session?.roomCode, session?.isHost]);
+  }, [session?.roomCode, session?.isHost, session?.username]);
 
   useEffect(() => {
     if (!state?.playerBoardCard || !state.botBoardCard || state.status !== 'resolving') return undefined;
@@ -345,9 +364,12 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   const playCard = useCallback((card: CardData) => {
     const current = stateRef.current;
     const channel = channelRef.current;
-    if (!session || !current || !channel || !current.connected || !current.opponentReady || current.status !== 'playing' || current.currentTurn !== current.role || current.playerBoardCard || !current.playerHand.some((item) => item.id === card.id)) {
+    
+    // ACTUALIZADO: Bloquea las jugadas si la animación inicial está en pantalla (!current.showIntro)
+    if (!session || !current || !channel || !current.connected || !current.opponentReady || current.showIntro || current.status !== 'playing' || current.currentTurn !== current.role || current.playerBoardCard || !current.playerHand.some((item) => item.id === card.id)) {
       return;
     }
+    
     setState((latest) => (latest ? applyPlayedCard(latest, current.role, card.id, current.round) : latest));
     channel.send({ type: 'broadcast', event: 'play_card', payload: { role: current.role, roomCode: session.roomCode, cardId: card.id, round: current.round } });
   }, [session]);
@@ -369,8 +391,8 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   }, [session]);
 
   return {
-    ...(state ?? createInitialState({ roomCode: session?.roomCode ?? 'ONLINE', isHost: true }, [])),
-    canPlay: Boolean(state?.connected && state.opponentReady && state.status === 'playing' && state.currentTurn === state.role && !state.playerBoardCard),
+    ...(state ?? createInitialState({ roomCode: session?.roomCode ?? 'ONLINE', isHost: true, username: 'Player' }, [])),
+    canPlay: Boolean(state?.connected && state.opponentReady && !state?.showIntro && state.status === 'playing' && state.currentTurn === state.role && !state.playerBoardCard),
     playCard,
     requestRematch,
     leaveRoom,
