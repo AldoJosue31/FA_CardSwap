@@ -8,7 +8,7 @@ const HAND_SIZE = 4;
 const MATCH_DECK_SIZE = 11;
 
 type OnlineRole = 'host' | 'guest';
-type OnlineStatus = 'playing' | 'resolving' | 'gameover' | 'abandoned';
+type OnlineStatus = 'playing' | 'revealing' | 'resolving' | 'gameover' | 'abandoned';
 
 export type OnlineSession = { roomCode: string; isHost: boolean; username: string };
 
@@ -51,9 +51,6 @@ const otherRole = (role: OnlineRole): OnlineRole => (role === 'host' ? 'guest' :
 
 const shuffleArray = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
 
-// =========================================================================
-// FUNCIONES DE SEMILLA: Generan la misma repartición en ambas computadoras
-// =========================================================================
 const hashSeed = (seed: string) => {
   let hash = 2166136261;
   for (let i = 0; i < seed.length; i += 1) {
@@ -83,17 +80,14 @@ const shuffleWithSeed = (array: CardData[], seed: string) => {
   }
   return shuffled;
 };
-// =========================================================================
 
 const refillHand = (hand: CardData[], deck: CardData[]) => {
   const nextHand = [...hand];
   const nextDeck = [...deck];
-
   while (nextHand.length < HAND_SIZE && nextDeck.length > 0) {
     const drawnCard = nextDeck.shift();
     if (drawnCard) nextHand.push(drawnCard);
   }
-
   return { hand: nextHand, deck: nextDeck };
 };
 
@@ -108,10 +102,7 @@ const createInitialState = (session: OnlineSession): OnlineGameState => {
   const role: OnlineRole = session.isHost ? 'host' : 'guest';
   const opponentRole = otherRole(role);
   
-  // MAGIA: Ambos jugadores usan el Room Code para mezclar las 22 cartas exactamente igual
   const globalShuffled = shuffleWithSeed(MOCK_DECK, session.roomCode);
-  
-  // El Host se queda la primera mitad, el Guest la segunda (Cero cartas repetidas)
   const myBaseCards = session.isHost ? globalShuffled.slice(0, MATCH_DECK_SIZE) : globalShuffled.slice(MATCH_DECK_SIZE, MATCH_DECK_SIZE * 2);
 
   const playerCards = myBaseCards.map((card, index) => {
@@ -119,58 +110,28 @@ const createInitialState = (session: OnlineSession): OnlineGameState => {
   });
 
   return {
-    role,
-    opponentRole,
-    connected: false,
-    opponentReady: false,
-    currentTurn: 'host',
-    round: 1,
-    playerHand: playerCards.slice(0, HAND_SIZE),
-    playerDeck: playerCards.slice(HAND_SIZE),
-    playerDiscard: [],
-    botHand: [],
-    botDeck: [],
-    botDiscard: [],
-    playerBoardCard: null,
-    botBoardCard: null,
-    playerScore: 0,
-    botScore: 0,
-    status: 'resolving',
-    message: 'Conectando a la sala...',
-    playerWantsRematch: false,
-    opponentWantsRematch: false,
-    playerUsername: session.username,
-    opponentUsername: 'RIVAL',
-    showIntro: true,
+    role, opponentRole, connected: false, opponentReady: false, currentTurn: 'host', round: 1,
+    playerHand: playerCards.slice(0, HAND_SIZE), playerDeck: playerCards.slice(HAND_SIZE), playerDiscard: [],
+    botHand: [], botDeck: [], botDiscard: [],
+    playerBoardCard: null, botBoardCard: null, playerScore: 0, botScore: 0,
+    status: 'resolving', message: 'Conectando a la sala...',
+    playerWantsRematch: false, opponentWantsRematch: false,
+    playerUsername: session.username, opponentUsername: 'RIVAL', showIntro: true,
   };
 };
 
 const triggerRematch = (state: OnlineGameState): OnlineGameState => {
   const allPlayer = [...state.playerHand, ...state.playerDeck, ...state.playerDiscard, ...(state.playerBoardCard ? [state.playerBoardCard] : [])];
   const allBot = [...state.botHand, ...state.botDeck, ...state.botDiscard, ...(state.botBoardCard ? [state.botBoardCard] : [])];
-
   const shuffledPlayer = shuffleArray(allPlayer);
   const shuffledBot = shuffleArray(allBot);
 
   const nextState: OnlineGameState = {
-    ...state,
-    round: 1,
-    playerScore: 0,
-    botScore: 0,
-    playerHand: shuffledPlayer.slice(0, HAND_SIZE),
-    playerDeck: shuffledPlayer.slice(HAND_SIZE),
-    playerDiscard: [],
-    botHand: shuffledBot.slice(0, HAND_SIZE),
-    botDeck: shuffledBot.slice(HAND_SIZE),
-    botDiscard: [],
-    playerBoardCard: null,
-    botBoardCard: null,
-    currentTurn: 'host',
-    status: 'playing',
-    playerWantsRematch: false,
-    opponentWantsRematch: false,
-    message: '¡NUEVA PARTIDA!',
-    showIntro: true,
+    ...state, round: 1, playerScore: 0, botScore: 0,
+    playerHand: shuffledPlayer.slice(0, HAND_SIZE), playerDeck: shuffledPlayer.slice(HAND_SIZE), playerDiscard: [],
+    botHand: shuffledBot.slice(0, HAND_SIZE), botDeck: shuffledBot.slice(HAND_SIZE), botDiscard: [],
+    playerBoardCard: null, botBoardCard: null, currentTurn: 'host', status: 'playing',
+    playerWantsRematch: false, opponentWantsRematch: false, message: '¡NUEVA PARTIDA!', showIntro: true,
   };
   return { ...nextState, message: turnMessage(nextState) };
 };
@@ -186,33 +147,16 @@ const applyPlayedCard = (state: OnlineGameState, playedBy: OnlineRole, cardId: s
   if (boardCard || !card) return state;
 
   const nextState: OnlineGameState = isLocal
-    ? {
-        ...state,
-        playerHand: state.playerHand.filter((item) => item.id !== cardId),
-        playerBoardCard: card,
-      }
-    : {
-        ...state,
-        botHand: state.botHand.filter((item) => item.id !== cardId),
-        botBoardCard: card,
-      };
+    ? { ...state, playerHand: state.playerHand.filter((item) => item.id !== cardId), playerBoardCard: card }
+    : { ...state, botHand: state.botHand.filter((item) => item.id !== cardId), botBoardCard: card };
 
   if (nextState.playerBoardCard && nextState.botBoardCard) {
-    return {
-      ...nextState,
-      currentTurn: null,
-      status: 'resolving',
-      message: 'Resolviendo duelo...',
-    };
+    // AÑADIDO: Van al estado Revealing en vez de resolving directo
+    return { ...nextState, currentTurn: null, status: 'revealing', message: '¡TENSIÓN EN LA CANCHA!' };
   }
 
   const nextTurn = otherRole(playedBy);
-  return {
-    ...nextState,
-    currentTurn: nextTurn,
-    status: 'playing',
-    message: nextTurn === state.role ? 'Tu turno' : 'Turno del rival',
-  };
+  return { ...nextState, currentTurn: nextTurn, status: 'playing', message: nextTurn === state.role ? 'Tu turno' : 'Turno del rival' };
 };
 
 export const useOnlineMatch = (session?: OnlineSession | null) => {
@@ -221,9 +165,7 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   const stateRef = useRef<OnlineGameState | null>(state);
   const acknowledgedRef = useRef(false);
 
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   useEffect(() => {
     if (state?.opponentReady && state.showIntro) {
@@ -235,19 +177,13 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   }, [state?.opponentReady, state?.showIntro]);
 
   useEffect(() => {
-    if (!session) {
-      setState(null);
-      return undefined;
-    }
-
+    if (!session) { setState(null); return undefined; }
     const initialState = createInitialState(session);
     setState(initialState);
     acknowledgedRef.current = false;
 
     const channel = supabase
-      .channel(`online_match_${session.roomCode}`, {
-        config: { broadcast: { ack: true } },
-      })
+      .channel(`online_match_${session.roomCode}`, { config: { broadcast: { ack: true } } })
       .on('broadcast', { event: 'ready' }, ({ payload }) => {
         const ready = payload as OnlinePayload;
         if (ready.roomCode !== session.roomCode || ready.role === initialState.role) return;
@@ -255,8 +191,6 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
 
         setState((current) => {
           if (!current || current.opponentReady) return current;
-          
-          // Obtenemos las cartas del oponente usando la misma semilla
           const globalShuffled = shuffleWithSeed(MOCK_DECK, session.roomCode);
           const opponentBaseCards = current.role === 'host' ? globalShuffled.slice(MATCH_DECK_SIZE, MATCH_DECK_SIZE * 2) : globalShuffled.slice(0, MATCH_DECK_SIZE);
 
@@ -265,11 +199,8 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           });
 
           const nextState = {
-            ...current,
-            opponentReady: true,
-            opponentUsername: ready.username || 'RIVAL',
-            botHand: opponentCards.slice(0, HAND_SIZE),
-            botDeck: opponentCards.slice(HAND_SIZE),
+            ...current, opponentReady: true, opponentUsername: ready.username || 'RIVAL',
+            botHand: opponentCards.slice(0, HAND_SIZE), botDeck: opponentCards.slice(HAND_SIZE),
             status: current.playerBoardCard && current.botBoardCard ? current.status : 'playing',
           };
           return { ...nextState, message: turnMessage(nextState) };
@@ -317,14 +248,8 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
     const readyTimer = window.setInterval(() => {
       if (!acknowledgedRef.current && channelRef.current) {
         channelRef.current.send({
-          type: 'broadcast',
-          event: 'ready',
-          payload: { 
-            role: initialState.role, 
-            roomCode: session.roomCode, 
-            hasOpponentDeck: stateRef.current?.opponentReady,
-            username: session.username
-          },
+          type: 'broadcast', event: 'ready',
+          payload: { role: initialState.role, roomCode: session.roomCode, hasOpponentDeck: stateRef.current?.opponentReady, username: session.username },
         });
       }
     }, 1000);
@@ -336,6 +261,17 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
     };
   }, [session?.roomCode, session?.isHost, session?.username]);
 
+  // AÑADIDO: EFECTO DE PAUSA DRAMÁTICA (1 Segundo vibrando antes de revelar)
+  useEffect(() => {
+    if (state?.status === 'revealing') {
+      const timer = setTimeout(() => {
+        setState((curr) => curr ? { ...curr, status: 'resolving', message: 'Calculando...' } : curr);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [state?.status]);
+
+  // EFECTO DE RESOLUCIÓN (Se ejecuta cuando Revealing termina)
   useEffect(() => {
     if (!state?.playerBoardCard || !state.botBoardCard || state.status !== 'resolving') return undefined;
 
@@ -362,25 +298,17 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           const isGameOver = playerRefill.hand.length === 0 && playerRefill.deck.length === 0 && opponentRefill.hand.length === 0 && opponentRefill.deck.length === 0;
 
           const nextState: OnlineGameState = {
-            ...current,
-            round: nextRound,
-            currentTurn: isGameOver ? null : nextTurn,
-            playerHand: playerRefill.hand,
-            playerDeck: playerRefill.deck,
-            playerDiscard: [...current.playerDiscard, current.playerBoardCard],
-            botHand: opponentRefill.hand,
-            botDeck: opponentRefill.deck,
-            botDiscard: [...current.botDiscard, current.botBoardCard],
-            playerBoardCard: null,
-            botBoardCard: null,
-            status: isGameOver ? 'gameover' : 'playing',
+            ...current, round: nextRound, currentTurn: isGameOver ? null : nextTurn,
+            playerHand: playerRefill.hand, playerDeck: playerRefill.deck, playerDiscard: [...current.playerDiscard, current.playerBoardCard],
+            botHand: opponentRefill.hand, botDeck: opponentRefill.deck, botDiscard: [...current.botDiscard, current.botBoardCard],
+            playerBoardCard: null, botBoardCard: null, status: isGameOver ? 'gameover' : 'playing',
           };
           return { ...nextState, message: isGameOver ? 'FIN DEL PARTIDO' : turnMessage(nextState) };
         });
-      }, 1400);
+      }, 2000);
 
       return () => window.clearTimeout(cleanupTimer);
-    }, 900);
+    }, 400); // 400ms para dar tiempo al CSS Flip
 
     return () => window.clearTimeout(resultTimer);
   }, [state?.playerBoardCard?.id, state?.botBoardCard?.id, state?.status]);
@@ -388,11 +316,9 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
   const playCard = useCallback((card: CardData) => {
     const current = stateRef.current;
     const channel = channelRef.current;
-    
     if (!session || !current || !channel || !current.connected || !current.opponentReady || current.showIntro || current.status !== 'playing' || current.currentTurn !== current.role || current.playerBoardCard || !current.playerHand.some((item) => item.id === card.id)) {
       return;
     }
-    
     setState((latest) => (latest ? applyPlayedCard(latest, current.role, card.id, current.round) : latest));
     channel.send({ type: 'broadcast', event: 'play_card', payload: { role: current.role, roomCode: session.roomCode, cardId: card.id, round: current.round } });
   }, [session]);

@@ -22,7 +22,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const requestRematch = (activeGame as any).requestRematch || (() => {});
   const leaveRoom = (activeGame as any).leaveRoom || (() => {});
   
-  // NUEVO: Verificadores para la pantalla de VS
   const playerUsername = isOnlineMatch && (activeGame as any).playerUsername ? (activeGame as any).playerUsername : 'TÚ';
   const opponentUsername = isOnlineMatch && (activeGame as any).opponentUsername ? (activeGame as any).opponentUsername : 'BOT';
   const showIntro = isOnlineMatch && (activeGame as any).showIntro && (activeGame as any).opponentReady;
@@ -58,7 +57,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   return (
     <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
       
-      {/* ================= ANIMACIÓN VS (INTRO DEL PARTIDO) ================= */}
       <AnimatePresence>
         {showIntro && (
           <motion.div 
@@ -100,9 +98,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
           </motion.div>
         )}
       </AnimatePresence>
-      {/* ==================================================================== */}
 
-      {/* Fondos y Texturas */}
       <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px), radial-gradient(circle at center, #26733a 0%, #143d22 100%)` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-30 mix-blend-multiply" style={{ backgroundImage: `radial-gradient(circle at 20% 30%, #3f2a14 0%, transparent 15%), radial-gradient(circle at 80% 70%, #3f2a14 0%, transparent 20%)`, filter: 'blur(30px)' }}></div>
@@ -120,14 +116,12 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </button>
       )}
 
-      {/* Dibujo Cancha */}
       <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] border-white/20 rounded-lg pointer-events-none flex flex-col items-center z-0 overflow-hidden shadow-[0_0_10px_rgba(255,255,255,0.1)]">
         <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/20 -translate-y-1/2"></div>
         <div className="absolute top-1/2 left-1/2 w-28 h-28 md:w-40 md:h-40 border-[2px] border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2 backdrop-blur-[1px]"></div>
         <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white/40 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      {/* MAZOS DE ROBO */}
       <div className="absolute right-6 md:right-16 bottom-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
@@ -137,7 +131,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
       </div>
 
-      {/* CEMENTERIOS */}
       <div className="absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-500 absolute -top-5">USADAS</span>
         {botDiscard.map(card => (
@@ -181,19 +174,34 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2">
+      {/* ======================= ARENA DE BATALLA CON VIBRACIÓN ======================= */}
+      <motion.div 
+        className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2"
+        animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }}
+        transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}
+      >
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!playerBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           {playerBoardCard && <Card card={playerBoardCard} disabled isBoardCard />}
         </div>
+        
         <div className="flex flex-col items-center justify-center pointer-events-none">
-           <div className="text-3xl md:text-6xl font-black italic text-white/20 tracking-tighter drop-shadow-2xl">VS</div>
+           <motion.div 
+             className="text-3xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl"
+             animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}
+           >
+             VS
+           </motion.div>
         </div>
+        
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
-          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard />}
+          
+          {/* MAGIA AQUÍ: Se oculta hasta que pasen las fases de jugar y de revelación dramática */}
+          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isHidden={status === 'playing' || status === 'bot_thinking' || status === 'revealing'} />}
         </div>
-      </div>
+      </motion.div>
+      {/* =============================================================================== */}
 
       <div className="flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -237,7 +245,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 <p className="text-xs text-cyan-300 font-bold tracking-[0.35em] uppercase mb-2">GUIA RAPIDA</p>
                 <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white mb-5">COMO JUGAR</h2>
                 <div className="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
-                  <p>Elige una carta de tu mano. Cuando la tiras, el CPU responde con una sola carta.</p>
+                  <p>Elige una carta de tu mano. Cuando la tiras, el rival responde con una sola carta.</p>
                   <p>Cuando ambas cartas estan en la cancha, se comparan sus puntos de ATK.</p>
                   <p>La carta con mayor ATK gana el duelo y suma 1 punto. Si empatan, nadie suma.</p>
                   <p>Gana la partida quien tenga mas puntos cuando se acaben las cartas.</p>
