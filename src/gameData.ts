@@ -19,7 +19,7 @@ export const MOCK_DECK: CardData[] = [
   { id: 'c23', name: 'H. Huracán', pos: 'DEL', atk: 93, def: 45, nationality: 'ENG', image: 'Huracan.png' },    // Real: Harry Kane
   { id: 'c24', name: 'T. Cortado', pos: 'POR', atk: 15, def: 94, nationality: 'BEL', image: 'Cortado.png' },    // Real: Thibaut Courtois
   { id: 'c25', name: 'F. De Pong', pos: 'MED', atk: 84, def: 80, nationality: 'NED', image: 'DePong.png' },
-  { id: 'c25', name: 'G. Yariel', pos: 'MED', atk: 84, def: 80, nationality: 'MEX', image: 'Pamperzy.png' },      // Real: Frenkie de Jong
+  { id: 'c25', name: 'G. Yariel', pos: 'MED', atk: -99, def: -99, nationality: 'MEX', image: 'Pamperzy.png' },      // Real: Frenkie de Jong
 
   // --- LEYENDAS (Conservadas del mazo original) ---
   { id: 'c3', name: 'P. Yolo', pos: 'DEF', atk: 35, def: 92, nationality: 'ESP', image: '', isLegend: true },            // Real: Carles Puyol
