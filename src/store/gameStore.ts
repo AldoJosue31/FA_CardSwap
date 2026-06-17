@@ -16,7 +16,8 @@ interface GameState {
   botBoardCard: CardData | null;
   playerScore: number;
   botScore: number;
-  status: 'playing' | 'resolving' | 'gameover';
+  // AÑADIDO: bot_thinking y revealing
+  status: 'playing' | 'bot_thinking' | 'revealing' | 'resolving' | 'gameover';
   message: string;
   initGame: (diff: string) => void;
   playCard: (card: CardData) => void;
@@ -34,11 +35,11 @@ const refillHand = (hand: CardData[], deck: CardData[]) => {
   return { hand: nextHand, deck: nextDeck };
 };
 
-const createMatchDeck = (cards: CardData[], prefix: string) =>
+const createMatchDeck = (cards: CardData[], prefix: 'player' | 'bot') =>
   cards.map((card, index) => ({
     ...card,
     id: `${prefix}-${card.id}-${index}`,
-    owner: prefix,
+    owner: prefix as 'player' | 'bot',
   }));
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -51,10 +52,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   initGame: (diff) => {
     const shuffle = (array: CardData[]) => [...array].sort(() => Math.random() - 0.5);
-    
-    // Repartimos 11 cartas aleatorias de todo el mazo para cada jugador
-    const shuffledPlayerCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'player');
-    const shuffledBotCards = createMatchDeck(shuffle([...MOCK_DECK]).slice(0, 11), 'bot');
+    const allShuffled = shuffle([...MOCK_DECK]);
+    const shuffledPlayerCards = createMatchDeck(allShuffled.slice(0, 11), 'player');
+    const shuffledBotCards = createMatchDeck(allShuffled.slice(11, 22), 'bot');
 
     set({
       difficulty: diff,
@@ -78,14 +78,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       playerBoardCard: cardInHand,
       playerHand: state.playerHand.filter((c) => c.id !== cardInHand.id),
-      status: 'resolving',
-      message: 'El Bot está pensando...',
+      status: 'bot_thinking',
+      message: 'El Rival está pensando...',
     }));
 
+    // 1. EL BOT PIENSA
     setTimeout(() => {
       let botCard: CardData;
 
-      // Inteligencia Artificial del CPU
       if (difficulty === 'Fácil') {
         botCard = botHand[Math.floor(Math.random() * botHand.length)];
       } else if (difficulty === 'Normal') {
@@ -112,46 +112,58 @@ export const useGameStore = create<GameState>((set, get) => ({
       set((state) => ({
         botBoardCard: botCard,
         botHand: state.botHand.filter((c) => c.id !== botCard.id),
+        status: 'revealing',
+        message: '¡TENSIÓN EN LA CANCHA!',
       }));
 
+      // 2. PAUSA DRAMÁTICA (1 Segundo vibrando antes de revelar)
       setTimeout(() => {
-        let winnerMsg = '';
-        if (cardInHand.atk > botCard.atk) {
-          winnerMsg = '¡Ganaste el duelo!';
-          set((state) => ({ playerScore: state.playerScore + 1 }));
-        } else if (botCard.atk > cardInHand.atk) {
-          winnerMsg = 'El Bot gana el duelo.';
-          set((state) => ({ botScore: state.botScore + 1 }));
-        } else {
-          winnerMsg = '¡Empate!';
-        }
-        set({ message: winnerMsg });
+        set({ status: 'resolving', message: 'Calculando...' });
 
+        // 3. SE VOLTEAN LAS CARTAS (Esperamos 400ms a que termine la animación visual de la carta)
         setTimeout(() => {
-          set((state) => ({
-            playerDiscard: [...state.playerDiscard, cardInHand],
-            botDiscard: [...state.botDiscard, botCard],
-            playerBoardCard: null, botBoardCard: null,
-            message: 'Robando cartas...',
-          }));
+          let winnerMsg = '';
+          const pCard = get().playerBoardCard!;
+          const bCard = get().botBoardCard!;
+          
+          if (pCard.atk > bCard.atk) {
+            winnerMsg = '¡Ganaste el duelo!';
+            set((state) => ({ playerScore: state.playerScore + 1 }));
+          } else if (bCard.atk > pCard.atk) {
+            winnerMsg = 'El Rival gana el duelo.';
+            set((state) => ({ botScore: state.botScore + 1 }));
+          } else {
+            winnerMsg = '¡Empate!';
+          }
+          set({ message: winnerMsg });
 
+          // 4. LIMPIEZA
           setTimeout(() => {
-            const state = get();
-            const playerRefill = refillHand(state.playerHand, state.playerDeck);
-            const botRefill = refillHand(state.botHand, state.botDeck);
+            set((state) => ({
+              playerDiscard: [...state.playerDiscard, pCard],
+              botDiscard: [...state.botDiscard, bCard],
+              playerBoardCard: null, botBoardCard: null,
+              message: 'Robando cartas...',
+            }));
 
-            if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
-              set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
-            } else {
-              set({ 
-                status: 'playing', message: '¡Tu turno!',
-                playerHand: playerRefill.hand, playerDeck: playerRefill.deck,
-                botHand: botRefill.hand, botDeck: botRefill.deck
-              });
-            }
-          }, 600);
-        }, 1500);
-      }, 800);
-    }, 600);
+            setTimeout(() => {
+              const state = get();
+              const playerRefill = refillHand(state.playerHand, state.playerDeck);
+              const botRefill = refillHand(state.botHand, state.botDeck);
+
+              if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
+                set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
+              } else {
+                set({ 
+                  status: 'playing', message: '¡Tu turno!',
+                  playerHand: playerRefill.hand, playerDeck: playerRefill.deck,
+                  botHand: botRefill.hand, botDeck: botRefill.deck
+                });
+              }
+            }, 600);
+          }, 1800);
+        }, 400); // Tiempo del Flip CSS
+      }, 1000); // Tiempo de la vibración
+    }, 800); // Tiempo de IA Pensando
   },
 }));

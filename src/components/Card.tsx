@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { DragEvent } from 'react';
 import type { CardData } from '../gameData';
 
@@ -11,13 +11,14 @@ interface CardProps {
   isBoardCard?: boolean;
   isDiscardCard?: boolean;
   isGalleryCard?: boolean;
+  isHidden?: boolean; 
 }
 
 const FLAG_MAP: Record<string, string> = {
   MEX: 'mx', ARG: 'ar', BRA: 'br', ESP: 'es', FRA: 'fr',
   POR: 'pt', ITA: 'it', GER: 'de', NED: 'nl', ENG: 'gb-eng',
   URU: 'uy', COL: 'co', SWE: 'se', CHI: 'cl', USA: 'us',
-  POL: 'pl'
+  POL: 'pl', NOR: 'no', BEL: 'be', CRO: 'hr', MAR: 'hr' // Añadidos Noruega (no) y Bélgica (be)
 };
 
 const BUCKET_NAME = "card-assets";
@@ -28,7 +29,7 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isHidden }: CardProps) {
   const isBot = card.owner === 'bot';
   const isLegend = card.isLegend; 
 
@@ -54,7 +55,16 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     ? { rotateX: [0, 180, 360], z: [0, 120, 0], scale: [1, 1.15, 1], opacity: 1, rotate: 0 } 
     : isDiscardCard 
     ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
-    : { x: 0, y: 0, scale: 1, opacity: 1, rotateX: 0, z: 0, rotate: 0 };
+    : { 
+        x: 0, 
+        y: disabled ? 40 : 0, 
+        scale: disabled ? 0.92 : 1, 
+        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)", 
+        opacity: 1, 
+        rotateX: 0, 
+        z: 0, 
+        rotate: 0 
+      };
 
   const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
 
@@ -97,7 +107,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         transformStyle: "preserve-3d", 
         zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
         transform: "translateZ(0)",
-        willChange: "transform, opacity"
+        willChange: "transform, opacity, filter" 
       }}
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
@@ -124,6 +134,30 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         </div>
       )}
 
+      {/* REVERSO DE LA CARTA (Se muestra por encima de todo si isHidden es true) */}
+      <AnimatePresence>
+        {isHidden && (
+          <motion.div
+            key="hidden-back"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.1, filter: "blur(4px)" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="absolute inset-0 z-50 bg-gradient-to-br from-slate-800 via-slate-900 to-[#021812] rounded-2xl flex flex-col items-center justify-center border-2 border-cyan-500/30"
+            style={{ backfaceVisibility: 'hidden' }}
+          >
+            <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-20">
+               <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#fff_10px,#fff_20px)] mix-blend-overlay"></div>
+            </div>
+            
+            <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border border-cyan-500/50 flex items-center justify-center bg-black/60 z-10 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+              <span className="text-3xl md:text-5xl opacity-80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">⚽</span>
+            </div>
+            <span className="mt-3 md:mt-5 text-cyan-400 font-black italic tracking-[0.3em] text-[10px] md:text-sm z-10 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">FUTARENA</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute top-0 left-0 right-0 h-2/3 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-0 rounded-t-2xl"></div>
 
       <div className={`relative z-10 w-full text-center rounded-lg py-1 px-2 flex justify-between items-center backdrop-blur-sm ${isLegend ? 'bg-slate-900/40 border border-slate-400/50' : isBot ? 'bg-red-950/40 border border-red-800/30' : 'bg-slate-900/50 border border-slate-700/50'}`}>
@@ -131,10 +165,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         <span className={`${isLegend ? 'text-slate-300' : isBot ? 'text-red-400' : 'text-cyan-400'} font-black text-[10px]`}>{card.pos}</span>
       </div>
 
-      {/* ================= CONTENEDOR FOTO + BANDERA ================= */}
       <div className="relative z-20 flex-1 my-2.5 w-full flex items-center justify-center">
-        
-        {/* 1. CAJA DE LA BANDERA (Guillotina exclusiva para el fondo) */}
         <div className={`absolute inset-0 rounded-lg overflow-hidden ${isLegend ? 'bg-slate-800/50' : isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
           {card.nationality && flagCode !== 'xx' && (
             <div 
@@ -144,16 +175,11 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           )}
         </div>
 
-        {/* 2. IMAGEN DEL JUGADOR (Fuera de la guillotina para permitir Pop-out) */}
         {card.image && card.image.trim() !== '' ? (
           <img 
             src={getSupabaseImageUrl(card.image)} 
             alt={card.name} 
             loading={isGalleryCard ? "lazy" : "eager"}
-            // LA FÓRMULA FINAL: 
-            // w-[125%] ensancha al jugador.
-            // h-[112%] combinado con bottom-0 clava el torso exactamente en el límite inferior, 
-            // forzando a que ese 12% extra rompa suavemente el límite superior de la bandera.
             className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -165,11 +191,8 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           </div>
         )}
 
-        {/* 3. DEGRADADO INFERIOR (Cubre el pecho y tiene bordes redondeados para empatar con la caja) */}
         <div className="absolute inset-x-0 bottom-0 h-[45%] rounded-b-lg bg-gradient-to-t from-black/90 via-black/40 to-transparent z-30 pointer-events-none"></div>
-        
       </div>
-      {/* ============================================================= */}
 
       <div className={`relative z-30 flex justify-between w-full font-black text-sm sm:text-lg p-1.5 rounded-lg backdrop-blur-sm ${isLegend ? 'bg-slate-900/50 border border-slate-400/40' : isBot ? 'bg-red-950/50 border border-red-900/30' : 'bg-slate-900/60 border border-slate-700/40'}`}>
         <div className="flex flex-col items-center">
