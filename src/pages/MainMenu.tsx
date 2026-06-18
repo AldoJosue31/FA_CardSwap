@@ -5,9 +5,13 @@ import { MOCK_DECK } from '../gameData';
 import Card from '../components/Card';
 import { supabase } from '../supabaseClient';
 
+// ==========================================
+// IMPORTAR AUDIO DE FONDO
+// ==========================================
+import menuMusicFile from '../assets/main_theme.mp3';
+
 const ROOM_CODE_LENGTH = 6;
 
-// NUEVO: Diccionario para darle peso a cada posición (Orden de la cancha)
 const POS_WEIGHT: Record<string, number> = {
   'POR': 1,
   'DEF': 2,
@@ -49,8 +53,6 @@ export default function MainMenu({
 
   const [posFilter, setPosFilter] = useState('ALL');
   const [natFilter, setNatFilter] = useState('ALL');
-  
-  // ACTUALIZADO: El orden por defecto ahora es 'POS' (Por Posición)
   const [sortBy, setSortBy] = useState('POS');
 
   const [joinCode, setJoinCode] = useState('');
@@ -60,6 +62,60 @@ export default function MainMenu({
   const roomChannelRef = useRef<RealtimeChannel | null>(null);
 
   const [username, setUsername] = useState(() => localStorage.getItem('futarena_username') || '');
+
+  // ==========================================
+  // MOTOR DE AUDIO CON FADE-IN (20% a 50%)
+  // ==========================================
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
+
+  const playAudioWithFade = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Limpiamos cualquier animación de volumen previa
+    if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+
+    // Inicia en el segundo 15
+    audio.currentTime = 15; 
+    audio.volume = 0.2;     // Empieza al 20%
+    
+    audio.play().catch(e => console.log("Audio bloqueado:", e));
+
+    let vol = 0.2;
+    // Transición de 0.2 a 0.5 (diferencia de 0.3) en 1.5 segundos (1500ms). Se actualiza cada 50ms (30 iteraciones)
+    const step = 0.3 / (1500 / 50); 
+
+    fadeIntervalRef.current = window.setInterval(() => {
+      vol += step;
+      if (vol >= 0.5) {
+        audio.volume = 0.5; // Termina exactamente en 50%
+        if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      } else {
+        audio.volume = vol;
+      }
+    }, 50);
+  };
+
+  useEffect(() => {
+    const audio = new Audio(menuMusicFile);
+    audio.loop = true;
+    audioRef.current = audio;
+
+    // Si regresamos desde un partido (saltando la pantalla boot y title), arranca el fade-in
+    if (initialScreen !== 'boot' && initialScreen !== 'title') {
+      playAudioWithFade();
+    }
+
+    // Limpieza al desmontar el menú (ir a jugar)
+    return () => {
+      if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      audio.pause();
+      audio.currentTime = 0;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialScreen]);
+  // ==========================================
 
   useEffect(() => {
     const saved = localStorage.getItem('futarena_unlocked_level');
@@ -73,12 +129,22 @@ export default function MainMenu({
     }
   }, [screen]);
 
+  // ==========================================
+  // EVENTO AL PRESIONAR CUALQUIER TECLA
+  // ==========================================
   useEffect(() => {
-    const handleKeyPress = () => { if (screen === 'title') setScreen('main'); };
+    const handleKeyPress = () => { 
+      if (screen === 'title') {
+        setScreen('main');
+        playAudioWithFade(); // ¡Arranca el audio con fade in!
+      } 
+    };
+    
     if (screen === 'title') {
       window.addEventListener('keydown', handleKeyPress);
       window.addEventListener('click', handleKeyPress);
     }
+    
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('click', handleKeyPress);
@@ -240,7 +306,6 @@ export default function MainMenu({
     if (posFilter !== 'ALL') deck = deck.filter(c => c.pos === posFilter);
     if (natFilter !== 'ALL') deck = deck.filter(c => c.nationality === natFilter);
 
-    // ACTUALIZADO: Si está seleccionado 'POS', usa nuestro diccionario para ordenar
     if (sortBy === 'POS') {
       deck.sort((a, b) => (POS_WEIGHT[a.pos] || 99) - (POS_WEIGHT[b.pos] || 99));
     } else if (sortBy === 'ATK_DESC') {
@@ -503,7 +568,6 @@ export default function MainMenu({
 
               <div className="flex-1 min-w-[180px]">
                 <label className="block text-[10px] text-cyan-400 font-bold tracking-widest mb-1">ORDENAR POR</label>
-                {/* ACTUALIZADO: El Value por defecto ahora es POS */}
                 <select 
                   value={sortBy} 
                   onChange={(e) => setSortBy(e.target.value)}
