@@ -11,6 +11,7 @@ interface CardProps {
   isBoardCard?: boolean;
   isDiscardCard?: boolean;
   isGalleryCard?: boolean;
+  isRevealing?: boolean;
   isHidden?: boolean; 
 }
 
@@ -29,7 +30,7 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isHidden }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden }: CardProps) {
   const isBot = card.owner === 'bot';
   const isLegend = card.isLegend; 
 
@@ -52,7 +53,9 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     : false;
 
   const animateProps = isBoardCard 
-    ? { rotateX: [0, 180, 360], z: [0, 120, 0], scale: [1, 1.15, 1], opacity: 1, rotate: 0 } 
+    ? isRevealing
+      ? { rotateX: [0, 180, 360], rotateY: [0, 8, -8, 0], z: [0, 120, 0], scale: [1, 1.16, 1], opacity: 1, rotate: 0, filter: "brightness(1.18) saturate(1.2)" }
+      : { rotateX: 0, rotateY: 0, z: 0, scale: 1, opacity: 1, rotate: 0, filter: "brightness(1) saturate(1)" }
     : isDiscardCard 
     ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
     : { 
@@ -62,6 +65,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)", 
         opacity: 1, 
         rotateX: 0, 
+        rotateY: 0,
         z: 0, 
         rotate: 0 
       };
@@ -98,7 +102,9 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         layout: { duration: 0.4, ease: "easeOut" },
         rotate: { duration: 0.4, ease: "easeOut" },
         rotateX: { duration: 0.4, ease: "linear" },
+        rotateY: { duration: 0.55, ease: "easeInOut" },
         z: { duration: 0.4, ease: "easeInOut" },
+        filter: { duration: 0.45, ease: "easeOut" },
         x: { type: "spring", stiffness: 300, damping: 25 },
         y: { type: "spring", stiffness: 300, damping: 25 },
         default: { type: "spring", stiffness: 500, damping: 25 }
