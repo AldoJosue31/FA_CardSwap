@@ -182,7 +182,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       >
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!playerBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
-          {playerBoardCard && <Card card={playerBoardCard} disabled isBoardCard />}
+          {playerBoardCard && <Card card={playerBoardCard} disabled isBoardCard isRevealing={status === 'revealing'} />}
         </div>
         
         <div className="flex flex-col items-center justify-center pointer-events-none">
@@ -197,8 +197,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           
-          {/* MAGIA AQUÍ: Se oculta hasta que pasen las fases de jugar y de revelación dramática */}
-          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isHidden={status === 'playing' || status === 'bot_thinking' || status === 'revealing'} />}
+          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isRevealing={status === 'revealing'} />}
         </div>
       </motion.div>
       {/* =============================================================================== */}
