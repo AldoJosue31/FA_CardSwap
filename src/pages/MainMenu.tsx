@@ -5,9 +5,13 @@ import { MOCK_DECK } from '../gameData';
 import Card from '../components/Card';
 import { supabase } from '../supabaseClient';
 
+// ==========================================
+// IMPORTAR AUDIO DE FONDO
+// ==========================================
+import menuMusicFile from '../assets/main_theme.m4a';
+
 const ROOM_CODE_LENGTH = 6;
 
-// NUEVO: Diccionario para darle peso a cada posición (Orden de la cancha)
 const POS_WEIGHT: Record<string, number> = {
   'POR': 1,
   'DEF': 2,
@@ -49,8 +53,6 @@ export default function MainMenu({
 
   const [posFilter, setPosFilter] = useState('ALL');
   const [natFilter, setNatFilter] = useState('ALL');
-  
-  // ACTUALIZADO: El orden por defecto ahora es 'POS' (Por Posición)
   const [sortBy, setSortBy] = useState('POS');
 
   const [joinCode, setJoinCode] = useState('');
@@ -60,6 +62,104 @@ export default function MainMenu({
   const roomChannelRef = useRef<RealtimeChannel | null>(null);
 
   const [username, setUsername] = useState(() => localStorage.getItem('futarena_username') || '');
+
+  // ==========================================
+  // ESTADOS Y REFERENCIAS DE AUDIO
+  // ==========================================
+  const [globalVolume, setGlobalVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('futarena_volume');
+    return saved !== null ? parseFloat(saved) : 0.5;
+  });
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    const saved = localStorage.getItem('futarena_muted');
+    return saved === 'true';
+  });
+
+  const globalVolumeRef = useRef(globalVolume);
+  const isMutedRef = useRef(isMuted);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    globalVolumeRef.current = globalVolume;
+    localStorage.setItem('futarena_volume', globalVolume.toString());
+  }, [globalVolume]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+    localStorage.setItem('futarena_muted', isMuted.toString());
+  }, [isMuted]);
+
+  const playAudioWithFade = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+
+    const targetVol = globalVolumeRef.current;
+    const muted = isMutedRef.current;
+
+    audio.currentTime = 15; 
+    audio.volume = muted ? 0 : Math.min(0.2, targetVol);
+    
+    audio.play().catch(e => console.log("Audio bloqueado:", e));
+
+    if (muted || targetVol <= 0.2) return;
+
+    let vol = audio.volume;
+    const step = (targetVol - 0.2) / (1500 / 50); 
+
+    fadeIntervalRef.current = window.setInterval(() => {
+      vol += step;
+      if (vol >= targetVol) {
+        audio.volume = targetVol; 
+        if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      } else {
+        audio.volume = vol;
+      }
+    }, 50);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVol = parseFloat(e.target.value);
+    setGlobalVolume(newVol);
+    
+    if (isMuted && newVol > 0) {
+      setIsMuted(false);
+      isMutedRef.current = false;
+    }
+    
+    if (audioRef.current) {
+      if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      audioRef.current.volume = isMutedRef.current ? 0 : newVol;
+    }
+  };
+
+  const handleMuteToggle = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    if (audioRef.current) {
+      if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      audioRef.current.volume = newMuted ? 0 : globalVolume;
+    }
+  };
+
+  useEffect(() => {
+    const audio = new Audio(menuMusicFile);
+    audio.loop = true;
+    audioRef.current = audio;
+
+    if (initialScreen !== 'boot' && initialScreen !== 'title') {
+      playAudioWithFade();
+    }
+
+    return () => {
+      if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
+      audio.pause();
+      audio.currentTime = 0;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialScreen]);
 
   useEffect(() => {
     const saved = localStorage.getItem('futarena_unlocked_level');
@@ -73,12 +173,22 @@ export default function MainMenu({
     }
   }, [screen]);
 
+  // ==========================================
+  // EVENTO AL PRESIONAR CUALQUIER TECLA
+  // ==========================================
   useEffect(() => {
-    const handleKeyPress = () => { if (screen === 'title') setScreen('main'); };
+    const handleKeyPress = () => { 
+      if (screen === 'title') {
+        setScreen('main');
+        playAudioWithFade();
+      } 
+    };
+    
     if (screen === 'title') {
       window.addEventListener('keydown', handleKeyPress);
       window.addEventListener('click', handleKeyPress);
     }
+    
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
       window.removeEventListener('click', handleKeyPress);
@@ -240,7 +350,6 @@ export default function MainMenu({
     if (posFilter !== 'ALL') deck = deck.filter(c => c.pos === posFilter);
     if (natFilter !== 'ALL') deck = deck.filter(c => c.nationality === natFilter);
 
-    // ACTUALIZADO: Si está seleccionado 'POS', usa nuestro diccionario para ordenar
     if (sortBy === 'POS') {
       deck.sort((a, b) => (POS_WEIGHT[a.pos] || 99) - (POS_WEIGHT[b.pos] || 99));
     } else if (sortBy === 'ATK_DESC') {
@@ -311,7 +420,7 @@ export default function MainMenu({
           </motion.div>
         )}
 
-        {['main', 'quickplay', 'local', 'difficulty', 'online', 'join_room', 'waiting_room'].includes(screen) && (
+        {['main', 'quickplay', 'local', 'difficulty', 'online', 'join_room', 'waiting_room', 'options'].includes(screen) && (
           <motion.div key="menus" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="z-10 w-full max-w-md px-6 flex flex-col h-full justify-center">
             <div className="mb-12">
                <h2 className="text-4xl font-black italic tracking-tighter"><span className="text-white">FUT</span><span className="text-cyan-400">ARENA</span></h2>
@@ -324,9 +433,37 @@ export default function MainMenu({
                 <MenuButton title="MODO ARCADE" subtitle="Requiere Iniciar Sesión" icon="🔒" disabled={true} />
                 <MenuButton title="GALERÍA DE CARTAS" subtitle="Filtros y colecciones" icon="📚" onClick={() => setScreen('gallery')} />
                 <div className="h-px w-full bg-white/10 my-2"></div>
-                <MenuButton title="OPCIONES" onClick={() => {}} />
+                <MenuButton title="OPCIONES" icon="⚙️" onClick={() => setScreen('options')} />
                 <MenuButton title="CRÉDITOS" onClick={() => {}} />
                 <MenuButton title="APOYAR" icon="☕" onClick={() => {}} />
+              </motion.div>
+            )}
+
+            {/* SECCIÓN NUEVA: OPCIONES */}
+            {screen === 'options' && (
+              <motion.div className="flex flex-col gap-3">
+                <div className="bg-black/40 border border-white/10 rounded-xl p-6 backdrop-blur-md shadow-[0_4px_15px_rgba(0,0,0,0.3)] text-left mb-2">
+                  <h3 className="text-lg font-black text-cyan-400 mb-4 tracking-widest uppercase">Ajustes de Sonido</h3>
+                  
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center text-sm font-bold text-white uppercase tracking-widest">
+                      <span>Música de Fondo</span>
+                      <span className="text-cyan-400">{Math.round(globalVolume * 100)}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="1" 
+                      step="0.01" 
+                      value={globalVolume}
+                      onChange={handleVolumeChange}
+                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="h-px w-full bg-transparent my-2"></div>
+                <MenuButton title="VOLVER" icon="↩" onClick={() => setScreen('main')} />
               </motion.div>
             )}
 
@@ -503,7 +640,6 @@ export default function MainMenu({
 
               <div className="flex-1 min-w-[180px]">
                 <label className="block text-[10px] text-cyan-400 font-bold tracking-widest mb-1">ORDENAR POR</label>
-                {/* ACTUALIZADO: El Value por defecto ahora es POS */}
                 <select 
                   value={sortBy} 
                   onChange={(e) => setSortBy(e.target.value)}
@@ -543,6 +679,16 @@ export default function MainMenu({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* BOTÓN RÁPIDO DE MUTE GLOBAL */}
+      <button
+        onClick={handleMuteToggle}
+        className="absolute bottom-6 left-6 z-50 h-12 w-12 flex items-center justify-center text-2xl bg-black/50 hover:bg-black/80 border border-white/20 rounded-full text-white backdrop-blur-md shadow-lg transition-all hover:scale-110 hover:border-cyan-500/50 focus:outline-none"
+        title={isMuted ? "Activar sonido" : "Silenciar sonido"}
+      >
+        {isMuted ? '🔇' : '🔊'}
+      </button>
+
     </div>
   );
 }

@@ -12,7 +12,8 @@ interface CardProps {
   isDiscardCard?: boolean;
   isGalleryCard?: boolean;
   isRevealing?: boolean;
-  isHidden?: boolean; 
+  isHidden?: boolean;
+  highlightStat?: 'atk' | 'def';
 }
 
 const FLAG_MAP: Record<string, string> = {
@@ -30,9 +31,9 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, highlightStat }: CardProps) {
   const isBot = card.owner === 'bot';
-  const isLegend = card.isLegend; 
+  const isLegend = card.isLegend;
 
   const flagCode = FLAG_MAP[card.nationality] || 'xx';
   const flagUrl = `https://flagcdn.com/w320/${flagCode}.png`;
@@ -47,47 +48,47 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
 
   const isNewDraw = !isBoardCard && !isDiscardCard && !isGalleryCard;
   const canInteract = !disabled && !isBoardCard && !isDiscardCard;
-  
-  const initialDrawProps = isNewDraw 
-    ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 } 
+
+  const initialDrawProps = isNewDraw
+    ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 }
     : false;
 
-  const animateProps = isBoardCard 
+  const animateProps = isBoardCard
     ? isRevealing
       ? { rotateX: [0, 180, 360], rotateY: [0, 8, -8, 0], z: [0, 120, 0], scale: [1, 1.16, 1], opacity: 1, rotate: 0, filter: "brightness(1.18) saturate(1.2)" }
       : { rotateX: 0, rotateY: 0, z: 0, scale: 1, opacity: 1, rotate: 0, filter: "brightness(1) saturate(1)" }
-    : isDiscardCard 
-    ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) } 
-    : { 
-        x: 0, 
-        y: disabled ? 40 : 0, 
-        scale: disabled ? 0.92 : 1, 
-        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)", 
-        opacity: 1, 
-        rotateX: 0, 
+    : isDiscardCard
+    ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) }
+    : {
+        x: 0,
+        y: disabled ? 40 : 0,
+        scale: disabled ? 0.92 : 1,
+        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)",
+        opacity: 1,
+        rotateX: 0,
         rotateY: 0,
-        z: 0, 
-        rotate: 0 
+        z: 0,
+        rotate: 0
       };
 
   const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
 
-  const bgClass = isLegend 
-    ? 'bg-gradient-to-br from-slate-700 via-slate-800 to-[#111]' 
-    : isBot 
-      ? 'bg-gradient-to-br from-red-950 via-black to-black' 
+  const bgClass = isLegend
+    ? 'bg-gradient-to-br from-slate-700 via-slate-800 to-[#111]'
+    : isBot
+      ? 'bg-gradient-to-br from-red-950 via-black to-black'
       : 'bg-gradient-to-br from-slate-800 via-slate-900 to-black';
 
-  const borderClass = isLegend 
-    ? 'border-2 border-slate-300' 
-    : isBot 
-      ? 'border border-red-800/40' 
+  const borderClass = isLegend
+    ? 'border-2 border-slate-300'
+    : isBot
+      ? 'border border-red-800/40'
       : 'border border-slate-700/50';
 
-  const shadowClass = isLegend 
-    ? 'shadow-[0_0_20px_rgba(255,255,255,0.25)]' 
-    : isBot 
-      ? 'shadow-[0_8px_25px_rgba(0,0,0,0.5)]' 
+  const shadowClass = isLegend
+    ? 'shadow-[0_0_20px_rgba(255,255,255,0.25)]'
+    : isBot
+      ? 'shadow-[0_8px_25px_rgba(0,0,0,0.5)]'
       : 'shadow-[0_8px_25px_rgba(0,0,0,0.4)]';
 
   return (
@@ -109,22 +110,22 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         y: { type: "spring", stiffness: 300, damping: 25 },
         default: { type: "spring", stiffness: 500, damping: 25 }
       }}
-      style={{ 
-        transformStyle: "preserve-3d", 
+      style={{
+        transformStyle: "preserve-3d",
         zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
         transform: "translateZ(0)",
-        willChange: "transform, opacity, filter" 
+        willChange: "transform, opacity, filter"
       }}
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
         ${bgClass} ${borderClass} ${shadowClass}
         ${disabled ? 'cursor-default pointer-events-none' : 'ring-1 ring-white/10 cursor-pointer'}`}
     >
-      
+
       {/* ANIMACIÓN LEYENDA */}
       {isLegend && (
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <motion.div 
+          <motion.div
             className="absolute inset-0 bg-gradient-to-tr from-slate-300/10 via-transparent to-slate-100/20"
             animate={{ opacity: [0.3, 0.8, 0.3] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -155,7 +156,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
             <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-20">
                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#fff_10px,#fff_20px)] mix-blend-overlay"></div>
             </div>
-            
+
             <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border border-cyan-500/50 flex items-center justify-center bg-black/60 z-10 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
               <span className="text-3xl md:text-5xl opacity-80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">⚽</span>
             </div>
@@ -174,7 +175,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       <div className="relative z-20 flex-1 my-2.5 w-full flex items-center justify-center">
         <div className={`absolute inset-0 rounded-lg overflow-hidden ${isLegend ? 'bg-slate-800/50' : isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
           {card.nationality && flagCode !== 'xx' && (
-            <div 
+            <div
               className="absolute inset-0 bg-cover bg-center opacity-35 mix-blend-overlay z-0"
               style={{ backgroundImage: `url(${flagUrl})` }}
             ></div>
@@ -182,11 +183,11 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
         </div>
 
         {card.image && card.image.trim() !== '' ? (
-          <img 
-            src={getSupabaseImageUrl(card.image)} 
-            alt={card.name} 
+          <img
+            src={getSupabaseImageUrl(card.image)}
+            alt={card.name}
             loading={isGalleryCard ? "lazy" : "eager"}
-            className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none" 
+            className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
@@ -201,11 +202,11 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       </div>
 
       <div className={`relative z-30 flex justify-between w-full font-black text-sm sm:text-lg p-1.5 rounded-lg backdrop-blur-sm ${isLegend ? 'bg-slate-900/50 border border-slate-400/40' : isBot ? 'bg-red-950/50 border border-red-900/30' : 'bg-slate-900/60 border border-slate-700/40'}`}>
-        <div className="flex flex-col items-center">
+        <div className={`flex flex-col items-center rounded-md px-1 transition-all ${highlightStat === 'atk' ? 'bg-red-400/20 ring-1 ring-red-300/70' : ''}`}>
           <span className="text-[8px] text-slate-400 tracking-widest font-medium">ATK</span>
           <span className={`${isLegend ? 'text-slate-100' : 'text-red-400'} drop-shadow-[0_0_5px_rgba(248,113,113,0.4)]`}>{card.atk}</span>
         </div>
-        <div className="flex flex-col items-center">
+        <div className={`flex flex-col items-center rounded-md px-1 transition-all ${highlightStat === 'def' ? 'bg-blue-400/20 ring-1 ring-blue-300/70' : ''}`}>
           <span className="text-[8px] text-slate-400 tracking-widest font-medium">DEF</span>
           <span className={`${isLegend ? 'text-slate-100' : 'text-blue-400'} drop-shadow-[0_0_5px_rgba(96,165,250,0.4)]`}>{card.def}</span>
         </div>
