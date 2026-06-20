@@ -70,6 +70,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
   const playerHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === myRole ? 'atk' : 'def') : undefined;
   const botHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === opponentRole ? 'atk' : 'def') : undefined;
+  const botCardWasPlayedFirst = hasPossession === opponentRole;
+  const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
 
   const coinFace = hasPossession === myRole ? (isHost ? 'CARA' : 'CRUZ') : (isHost ? 'CRUZ' : 'CARA');
   const coinWinnerLabel = hasPossession === myRole ? playerLabel : rivalLabel;
@@ -206,7 +208,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
-          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isHidden={status === 'playing' || status === 'bot_thinking' || status === 'revealing'} highlightStat={botHighlight} />}
+          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} />}
         </div>
       </motion.div>
 

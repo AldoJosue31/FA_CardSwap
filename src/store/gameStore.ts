@@ -148,28 +148,25 @@ export const useGameStore = create<GameState>((set, get) => ({
             setTimeout(() => {
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
-              const pPossession = get().hasPossession === 'player';
+              const currentPossession = get().hasPossession;
+              const pPossession = currentPossession === 'player';
 
               const pScoreVal = pPossession ? pCard.atk : pCard.def;
               const bScoreVal = pPossession ? bCard.def : bCard.atk;
 
               let winnerMsg = '';
-              let newPossession: 'player' | 'bot' = get().hasPossession;
 
               if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-                newPossession = 'player';
+                winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
                 set((state) => ({ playerScore: state.playerScore + 1 }));
               } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del Bot.';
-                newPossession = 'bot';
+                winnerMsg = pPossession ? 'El Bot defendió mejor' : 'Gol del Bot.';
                 set((state) => ({ botScore: state.botScore + 1 }));
               } else {
-                winnerMsg = '¡Empate! Balón dividido';
-                newPossession = pPossession ? 'bot' : 'player';
+                winnerMsg = '¡Empate!';
               }
 
-              set({ message: winnerMsg, hasPossession: newPossession });
+              set({ message: winnerMsg });
 
               setTimeout(() => {
                 set((state) => ({
@@ -183,6 +180,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                   const state = get();
                   const playerRefill = refillHand(state.playerHand, state.playerDeck);
                   const botRefill = refillHand(state.botHand, state.botDeck);
+                  const nextPossession: 'player' | 'bot' = state.hasPossession === 'player' ? 'bot' : 'player';
 
                   if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
                     set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
@@ -192,11 +190,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                       playerDeck: playerRefill.deck,
                       botHand: botRefill.hand,
                       botDeck: botRefill.deck,
+                      hasPossession: nextPossession,
                       status: 'playing',
-                      currentTurn: state.hasPossession,
-                      message: state.hasPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
+                      currentTurn: nextPossession,
+                      message: nextPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
                     });
-                    if (state.hasPossession === 'bot') get().triggerBotPlay();
+                    if (nextPossession === 'bot') get().triggerBotPlay();
                   }
                 }, 600);
               }, 1800);
@@ -230,28 +229,25 @@ export const useGameStore = create<GameState>((set, get) => ({
             setTimeout(() => {
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
-              const pPossession = get().hasPossession === 'player';
+              const currentPossession = get().hasPossession;
+              const pPossession = currentPossession === 'player';
 
               const pScoreVal = pPossession ? pCard.atk : pCard.def;
               const bScoreVal = pPossession ? bCard.def : bCard.atk;
 
               let winnerMsg = '';
-              let newPossession: 'player' | 'bot' = get().hasPossession;
 
               if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-                newPossession = 'player';
+                winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
                 set((state) => ({ playerScore: state.playerScore + 1 }));
               } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del Bot.';
-                newPossession = 'bot';
+                winnerMsg = pPossession ? 'El Bot defendió mejor' : 'Gol del Bot.';
                 set((state) => ({ botScore: state.botScore + 1 }));
               } else {
-                winnerMsg = '¡Empate! Balón dividido';
-                newPossession = pPossession ? 'bot' : 'player';
+                winnerMsg = '¡Empate!';
               }
 
-              set({ message: winnerMsg, hasPossession: newPossession });
+              set({ message: winnerMsg });
 
               setTimeout(() => {
                 set((state) => ({
@@ -265,6 +261,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                   const state = get();
                   const playerRefill = refillHand(state.playerHand, state.playerDeck);
                   const botRefill = refillHand(state.botHand, state.botDeck);
+                  const nextPossession: 'player' | 'bot' = state.hasPossession === 'player' ? 'bot' : 'player';
 
                   if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
                     set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
@@ -274,11 +271,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                       playerDeck: playerRefill.deck,
                       botHand: botRefill.hand,
                       botDeck: botRefill.deck,
+                      hasPossession: nextPossession,
                       status: 'playing',
-                      currentTurn: state.hasPossession,
-                      message: state.hasPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
+                      currentTurn: nextPossession,
+                      message: nextPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
                     });
-                    if (state.hasPossession === 'bot') get().triggerBotPlay();
+                    if (nextPossession === 'bot') get().triggerBotPlay();
                   }
                 }, 600);
               }, 1800);

@@ -334,25 +334,20 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
 
         let playerWins = pScoreVal > bScoreVal;
         let opponentWins = bScoreVal > pScoreVal;
-        let newPossession = current.hasPossession;
 
         let winnerMsg = '';
         if (playerWins) {
-            winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-            newPossession = current.role;
+            winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
         } else if (opponentWins) {
-            winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del rival.';
-            newPossession = current.opponentRole;
+            winnerMsg = pPossession ? 'El rival defendió mejor' : 'Gol del rival.';
         } else {
-            winnerMsg = '¡Empate! Balón dividido';
-            newPossession = current.opponentRole;
+            winnerMsg = '¡Empate!';
         }
 
         return {
           ...current,
           playerScore: playerWins ? current.playerScore + 1 : current.playerScore,
           botScore: opponentWins ? current.botScore + 1 : current.botScore,
-          hasPossession: newPossession,
           message: winnerMsg,
         };
       });
@@ -363,10 +358,11 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           const playerRefill = refillHand(current.playerHand, current.playerDeck);
           const opponentRefill = refillHand(current.botHand, current.botDeck);
           const nextRound = current.round + 1;
+          const nextPossession = otherRole(current.hasPossession);
           const isGameOver = playerRefill.hand.length === 0 && playerRefill.deck.length === 0 && opponentRefill.hand.length === 0 && opponentRefill.deck.length === 0;
 
           const nextState: OnlineGameState = {
-            ...current, round: nextRound, currentTurn: current.hasPossession,
+            ...current, round: nextRound, hasPossession: nextPossession, currentTurn: nextPossession,
             playerHand: playerRefill.hand, playerDeck: playerRefill.deck, playerDiscard: [...current.playerDiscard, current.playerBoardCard],
             botHand: opponentRefill.hand, botDeck: opponentRefill.deck, botDiscard: [...current.botDiscard, current.botBoardCard],
             playerBoardCard: null, botBoardCard: null, status: isGameOver ? 'gameover' : 'playing',
