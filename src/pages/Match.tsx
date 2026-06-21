@@ -78,7 +78,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const coinWinnerLabel = hasPossession === myRole ? playerLabel : rivalLabel;
 
   return (
-    <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
+    <div className="match-screen h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
 
       {/* ================= FASE DE INTRO ================= */}
       <AnimatePresence>
@@ -140,13 +140,13 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
       </div>
 
-      <div className="absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+      <div className="match-discard-pile absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-500 absolute -top-5">USADAS</span>
-        {botDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard /></div>)}
+        {botDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
-      <div className="absolute left-6 md:left-16 top-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+      <div className="match-discard-pile absolute left-6 md:left-16 top-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-400 absolute -bottom-5">USADAS</span>
-        {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard /></div>)}
+        {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
 
       <header className="relative z-10 flex justify-center pt-4 shrink-0 pointer-events-none">
@@ -164,7 +164,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       <div className="flex justify-center items-start mt-2 md:mt-4 z-10 opacity-90 origin-top shrink-0">
         <div className="flex justify-center gap-2 md:gap-3.5 overflow-x-auto px-4 md:px-10 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {botHand.map((card: CardData) => (
-            <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+            <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="match-hidden-card w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
               <span className="text-2xl md:text-3xl opacity-20">⚽</span>
             </motion.div>
           ))}
@@ -174,11 +174,11 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
         
         {/* Contenedor Carta Jugador */}
-        <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
+        <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!playerBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           {playerBoardCard && (
             <>
-              <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} />
+              <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card" />
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -231,11 +231,11 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </div>
 
         {/* Contenedor Carta Rival */}
-        <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
+        <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           {botBoardCard && (
             <>
-              <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} />
+              <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card" />
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -250,10 +250,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </div>
       </motion.div>
 
-      <div className="flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
+      <div className="match-player-hand flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {playerHand.map((card: CardData) => (
-            <Card key={card.id} card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} />
+            <Card key={card.id} card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} className="match-card" />
           ))}
         </div>
       </div>

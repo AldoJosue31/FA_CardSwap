@@ -14,6 +14,7 @@ interface CardProps {
   isRevealing?: boolean;
   isHidden?: boolean;
   highlightStat?: 'atk' | 'def';
+  className?: string;
 }
 
 const FLAG_MAP: Record<string, string> = {
@@ -31,7 +32,7 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, highlightStat }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, highlightStat, className = '' }: CardProps) {
   const isBot = card.owner === 'bot';
   const isLegend = card.isLegend;
 
@@ -119,7 +120,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       onClick={!disabled ? onClick : undefined}
       className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
         ${bgClass} ${borderClass} ${shadowClass}
-        ${disabled ? 'cursor-default pointer-events-none' : 'ring-1 ring-white/10 cursor-pointer'}`}
+        ${disabled ? 'cursor-default pointer-events-none' : 'ring-1 ring-white/10 cursor-pointer'} ${className}`}
     >
 
       {/* ANIMACIÓN LEYENDA */}

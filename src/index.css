@@ -68,6 +68,47 @@ body {
   margin: 0;
 }
 
+@media (max-height: 820px) and (min-width: 768px) {
+  .match-screen {
+    --match-card-scale: 0.84;
+    --match-hidden-card-scale: 0.9;
+  }
+
+  .match-screen .match-card {
+    scale: var(--match-card-scale);
+    transition: scale 180ms ease;
+  }
+
+  .match-screen .match-hidden-card {
+    scale: var(--match-hidden-card-scale);
+    transform-origin: top center;
+    transition: scale 180ms ease;
+  }
+
+  .match-screen .match-player-hand .match-card {
+    transform-origin: top center;
+  }
+
+  .match-screen .match-board-slot .match-card,
+  .match-screen .match-discard-pile .match-card {
+    transform-origin: center;
+  }
+}
+
+@media (max-height: 700px) and (min-width: 768px) {
+  .match-screen {
+    --match-card-scale: 0.78;
+    --match-hidden-card-scale: 0.84;
+  }
+}
+
+@media (max-height: 620px) and (min-width: 768px) {
+  .match-screen {
+    --match-card-scale: 0.7;
+    --match-hidden-card-scale: 0.78;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);
