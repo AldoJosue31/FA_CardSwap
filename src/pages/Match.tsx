@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
+import CoinFlip from '../components/CoinFlip'; // Módulo Custom Importado
 import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
@@ -70,6 +71,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
   const playerHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === myRole ? 'atk' : 'def') : undefined;
   const botHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === opponentRole ? 'atk' : 'def') : undefined;
+  
   const botCardWasPlayedFirst = hasPossession === opponentRole;
   const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
 
@@ -79,7 +81,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   return (
     <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
 
-      {/* ================= FASE DE INTRO (VS -> MONEDA GIRANDO -> RESULTADO) ================= */}
+      {/* ================= FASE DE INTRO (VS -> MONEDA) ================= */}
       <AnimatePresence>
         {introState !== 'none' && (
           <motion.div
@@ -91,45 +93,24 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
             {introState === 'vs' && (
               <motion.div className="flex flex-col md:flex-row items-center w-full justify-center" key="vs-screen" exit={{ scale: 1.5, opacity: 0 }}>
                  <motion.div initial={{ x: -300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 20, delay: 0.1 }} className="flex-1 flex flex-col items-center justify-center md:justify-end md:pr-16 text-center">
-                   <p className="text-xs text-slate-400 tracking-[0.5em] mb-2">{isHost ? 'CARA' : 'CRUZ'}</p>
+                   {/* Spoiler de CARA eliminado */}
                    <h2 className="text-4xl md:text-7xl font-black text-cyan-400 tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(34,211,238,0.5)]">{playerLabel}</h2>
                  </motion.div>
                  <motion.div initial={{ scale: 0, opacity: 0, rotate: -180 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', bounce: 0.6, delay: 0.5 }} className="text-6xl md:text-8xl font-black italic text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10 my-8 md:my-0">VS</motion.div>
                  <motion.div initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 20, delay: 0.3 }} className="flex-1 flex flex-col items-center justify-center md:justify-start md:pl-16 text-center">
-                   <p className="text-xs text-slate-400 tracking-[0.5em] mb-2">{!isHost ? 'CARA' : 'CRUZ'}</p>
+                   {/* Spoiler de CRUZ eliminado */}
                    <h2 className="text-4xl md:text-7xl font-black text-red-500 tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(239,68,68,0.5)]">{rivalLabel}</h2>
                  </motion.div>
               </motion.div>
             )}
 
-            {introState === 'coin_spin' && (
-              <motion.div className="flex flex-col items-center justify-center" key="coin-spin-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
-                <p className="text-sm text-cyan-400 font-bold tracking-[0.4em] mb-10 uppercase">Sorteo de Posesión</p>
-                <div className="perspective-1000 w-32 h-32 md:w-48 md:h-48 mb-10">
-                  <motion.div
-                    animate={{ rotateY: [0, 1800, 3600], y: [0, -150, 0] }}
-                    transition={{ duration: 1.8, ease: "easeInOut" }}
-                    className="w-full h-full rounded-full border-4 border-yellow-400 bg-gradient-to-br from-yellow-300 to-yellow-600 shadow-[0_0_40px_rgba(253,224,71,0.6)] flex items-center justify-center transform-gpu"
-                  >
-                     <span className="text-4xl md:text-6xl drop-shadow-md">🪙</span>
-                  </motion.div>
-                </div>
-              </motion.div>
-            )}
-
-            {introState === 'coin_result' && (
-              <motion.div className="flex flex-col items-center justify-center" key="coin-result-screen" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                <p className="text-sm text-cyan-400 font-bold tracking-[0.4em] mb-10 uppercase">Sorteo de Posesión</p>
-                <div className="perspective-1000 w-32 h-32 md:w-48 md:h-48 mb-10">
-                  <div className="w-full h-full rounded-full border-4 border-yellow-400 bg-gradient-to-br from-yellow-300 to-yellow-600 shadow-[0_0_50px_rgba(253,224,71,1)] flex items-center justify-center transform-gpu">
-                     <span className="text-4xl md:text-6xl drop-shadow-md">🪙</span>
-                  </div>
-                </div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                   <h3 className="text-5xl md:text-7xl font-black text-white tracking-widest drop-shadow-lg uppercase text-center">{coinFace}</h3>
-                   <p className="text-yellow-300 mt-4 text-lg md:text-xl tracking-[0.3em] font-bold text-center">{coinWinnerLabel} SACA EL BALÓN</p>
-                </motion.div>
-              </motion.div>
+            {/* AQUI SE LLAMA AL MODULO DE LA MONEDA 3D */}
+            {(introState === 'coin_spin' || introState === 'coin_result') && (
+              <CoinFlip 
+                phase={introState} 
+                resultFace={coinFace} 
+                winnerLabel={coinWinnerLabel} 
+              />
             )}
           </motion.div>
         )}
@@ -174,14 +155,12 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <header className="relative z-10 flex justify-center pt-4 shrink-0 pointer-events-none">
         <div className="bg-black/60 backdrop-blur-lg border border-white/10 px-6 md:px-10 py-2 md:py-3 rounded-full flex gap-8 md:gap-16 items-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] pointer-events-auto">
-          <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-tighter flex items-center gap-2">
-            {hasPossession === myRole && <span className="text-lg animate-bounce drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">⚽</span>}
+          <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-tighter">
             {playerLabel}: {playerScore}
           </div>
           <div className="text-[10px] md:text-xs font-medium tracking-[0.2em] text-slate-300 uppercase">{statusMessage}</div>
-          <div className="text-xl md:text-3xl font-black text-red-500 tracking-tighter flex items-center gap-2">
+          <div className="text-xl md:text-3xl font-black text-red-500 tracking-tighter">
             {botScore} :{rivalLabel}
-            {hasPossession === opponentRole && <span className="text-lg animate-bounce drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">⚽</span>}
           </div>
         </div>
       </header>
@@ -197,29 +176,73 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       </div>
 
       <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
+        
+        {/* Contenedor Carta Jugador */}
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!playerBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
-          {playerBoardCard && <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} />}
+          {playerBoardCard && (
+            <>
+              <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} />
+              <AnimatePresence>
+                {status === 'resolving' && (
+                  <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+                    <span className="text-7xl md:text-9xl drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]">
+                      {hasPossession === myRole ? '⚔️' : '🛡️'}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          )}
         </div>
 
-        <div className="flex flex-col items-center justify-center pointer-events-none">
+        {/* ZONA CENTRAL */}
+        <div className="flex flex-col items-center justify-center pointer-events-none relative w-16 md:w-32">
            <motion.div className="text-3xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl" animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}>VS</motion.div>
+           
+           <AnimatePresence>
+             {introState === 'none' && (
+               <motion.div
+                 initial={{ scale: 0, opacity: 0 }}
+                 animate={{ scale: 1, opacity: 1, x: hasPossession === myRole ? -75 : 75 }}
+                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                 className="absolute text-3xl md:text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] z-30 animate-bounce"
+               >
+                 ⚽
+               </motion.div>
+             )}
+           </AnimatePresence>
         </div>
 
+        {/* Contenedor Carta Rival */}
         <div className="relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
-          {botBoardCard && <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} />}
+          {botBoardCard && (
+            <>
+              <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} />
+              <AnimatePresence>
+                {status === 'resolving' && (
+                  <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+                    <span className="text-7xl md:text-9xl drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]">
+                      {hasPossession === opponentRole ? '⚔️' : '🛡️'}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          )}
         </div>
       </motion.div>
 
       <div className="flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {playerHand.map((card: CardData) => (
-            <Card key={card.id} card={card} onClick={() => playCard(card)} disabled={status !== 'playing' || isPaused || !activeGame.canPlay} />
+            <Card key={card.id} card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} />
           ))}
         </div>
       </div>
 
+      {/* MENÚS PAUSA / GAMEOVER */}
       {isPaused && status !== 'gameover' && status !== 'abandoned' && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 px-6">
           <p className="text-sm md:text-base text-cyan-300 font-bold tracking-[0.35em] uppercase mb-3">NIVEL: {difficulty}</p>
@@ -239,8 +262,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white mb-5">POSESIÓN Y DUELOS</h2>
                 <div className="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
                   <p>Al inicio se lanza una moneda. El ganador tira primero y toma la <span className="text-cyan-400 font-bold">Posesión ⚽</span>.</p>
-                  <p>En el duelo, el jugador <span className="font-bold text-white">CON</span> posesión usa su <span className="text-red-400 font-bold">ATK</span> para intentar anotar.</p>
-                  <p>El jugador <span className="font-bold text-white">SIN</span> posesión debe usar su <span className="text-blue-400 font-bold">DEF</span> para intentar robar el balón.</p>
+                  <p>En el duelo, el jugador <span className="font-bold text-white">CON</span> posesión usa su <span className="text-red-400 font-bold">ATK ⚔️</span> para intentar anotar.</p>
+                  <p>El jugador <span className="font-bold text-white">SIN</span> posesión debe usar su <span className="text-blue-400 font-bold">DEF 🛡️</span> para intentar robar el balón.</p>
                   <p>Si la Defensa es mayor que el Ataque, ¡Robas el balón para el próximo turno!</p>
                 </div>
                 <button onClick={() => setIsHelpOpen(false)} className="mt-7 w-full py-4 bg-cyan-500 text-black rounded-xl text-lg font-black transition-all hover:scale-105 shadow-[0_0_30px_rgba(34,211,238,0.35)]">ENTENDIDO</button>
