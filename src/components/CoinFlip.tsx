@@ -18,9 +18,9 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
       
       // FASE 1: Se tira al aire con fuerza y cae al piso
       controls.start({
-        y: [0, -350, 100], // Sube mucho hacia la cámara y luego cae "al piso"
-        rotateX: [0, 1800, 3600], // Gira brutalmente a alta velocidad
-        scale: [1, 2, 0.4], // Se hace gigante al subir y pequeñita al caer
+        y: [0, -350, 100], 
+        rotateX: [0, 1800, 3600], 
+        scale: [1, 2, 0.4], 
         transition: { 
           duration: 2, 
           times: [0, 0.4, 1], 
@@ -37,14 +37,12 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
 
     } else if (phase === 'coin_result') {
       // FASE 2: Rebota del piso, frena en la cara correcta y levita
-      // 3600 es múltiplo de 360 (CARA hacia el frente).
-      // Le sumamos 360 (1 vuelta) para CARA, o 540 (vuelta y media) para CRUZ.
       const finalRotation = resultFace === 'CARA' ? 3960 : 4140;
 
       controls.start({
-        y: [100, -20], // Rebota suavemente hacia arriba
-        rotateX: finalRotation, // Frena matemáticamente en el ángulo exacto
-        scale: [0.4, 1.4], // Retoma un tamaño grande y legible
+        y: [100, -20], 
+        rotateX: finalRotation, 
+        scale: [0.4, 1.4], 
         transition: { 
           type: "spring",
           stiffness: 100,
@@ -57,7 +55,7 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
           y: [-20, -35, -20],
           transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
         });
-        setShowResultText(true); // Aparece el texto holográfico
+        setShowResultText(true); 
       });
 
       // La sombra se adapta a la levitación
@@ -72,7 +70,7 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
   if (phase === 'none') return null;
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-[110] pointer-events-none">
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-[110] pointer-events-none px-4">
       <p className="absolute top-[20%] text-sm text-cyan-400 font-bold tracking-[0.4em] uppercase opacity-70 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
         Sorteo de Posesión
       </p>
@@ -84,13 +82,12 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
           className="relative w-full h-full transform-gpu"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* FRENTE: CARA (ORO PREMIUM - LOCAL) */}
+          {/* FRENTE: CARA (ORO PREMIUM) */}
           <div 
             className="absolute inset-0 rounded-full border-[8px] md:border-[12px] border-yellow-600 bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-900 flex flex-col items-center justify-center shadow-[inset_0_0_30px_rgba(133,77,14,0.8),0_10px_25px_rgba(0,0,0,0.5)]" 
             style={{ backfaceVisibility: 'hidden' }}
           >
-            {/* Detalle interno */}
-            <div className="absolute inset-1.5 md:inset-2.5 rounded-full border border-yellow-200/80 shadow-[0_0_10px_rgba(253,224,71,0.5)]"></div>
+            <div className="absolute inset-1.5 md:inset-2.5 rounded-full border border-yellow-200/80 shadow-[0_0_10px_rgba(255,234,71,0.5)]"></div>
             <div className="absolute inset-3 md:inset-4 rounded-full border border-yellow-400/60 border-dashed animate-[spin_15s_linear_infinite]"></div>
 
             <div className="flex flex-col items-center justify-center z-10 transform -translate-y-1">
@@ -101,12 +98,11 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
             </div>
           </div>
 
-          {/* ESPALDA: CRUZ (PLATA CIBERNÉTICA - VISITANTE) */}
+          {/* ESPALDA: CRUZ (PLATA CIBERNÉTICA) */}
           <div 
             className="absolute inset-0 rounded-full border-[8px] md:border-[12px] border-slate-400 bg-gradient-to-br from-slate-100 via-slate-400 to-slate-800 flex flex-col items-center justify-center shadow-[inset_0_0_30px_rgba(15,23,42,0.8),0_10px_25px_rgba(0,0,0,0.5)]" 
             style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
           >
-            {/* Detalle interno */}
             <div className="absolute inset-1.5 md:inset-2.5 rounded-full border border-cyan-200/80 shadow-[0_0_10px_rgba(34,211,238,0.5)]"></div>
             <div className="absolute inset-3 md:inset-4 rounded-full border border-cyan-400/60 border-dashed animate-[spin_15s_linear_infinite_reverse]"></div>
 
@@ -126,22 +122,33 @@ export default function CoinFlip({ phase, resultFace, winnerLabel }: CoinFlipPro
         />
       </div>
 
-      {/* TEXTO DE RESULTADO (Aparece con resplandor tipo Glassmorphism) */}
       <AnimatePresence>
         {showResultText && phase === 'coin_result' && (
-          <motion.div 
-            initial={{ opacity: 0, y: 30, scale: 0.8 }} 
-            animate={{ opacity: 1, y: 0, scale: 1 }} 
-            exit={{ opacity: 0 }}
-            className="absolute top-[65%] flex flex-col items-center"
-          >
-             <h3 className="text-6xl md:text-7xl font-black text-white tracking-widest drop-shadow-[0_0_30px_rgba(255,255,255,0.7)] uppercase text-center">
-               {resultFace}
-             </h3>
-             <p className="text-yellow-300 mt-4 text-sm md:text-lg tracking-[0.2em] md:tracking-[0.3em] font-bold text-center bg-black/60 px-8 py-3 rounded-full border border-white/20 backdrop-blur-md shadow-[0_15px_30px_rgba(0,0,0,0.9)]">
-               {winnerLabel} TIENE EL BALÓN
-             </p>
-          </motion.div>
+          <>
+            {/* 1. TEXTO DEL RESULTADO: Bajado unos píxeles para que no toque la moneda */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15, scale: 0.8 }} 
+              animate={{ opacity: 1, y: 0, scale: 1 }} 
+              exit={{ opacity: 0 }}
+              className="absolute top-[65%] md:top-[67%] flex flex-col items-center"
+            >
+               <h3 className="text-5xl md:text-7xl font-black text-white tracking-widest drop-shadow-[0_0_25px_rgba(255,255,255,0.6)] uppercase text-center">
+                 {resultFace}
+               </h3>
+            </motion.div>
+
+            {/* 2. TEXTO DE POSESIÓN: Bandeja inferior */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20, scale: 0.9 }} 
+              animate={{ opacity: 1, y: 0, scale: 1 }} 
+              exit={{ opacity: 0 }}
+              className="absolute bottom-[10%] md:bottom-[12%] flex flex-col items-center"
+            >
+               <p className="text-yellow-300 text-sm md:text-lg tracking-[0.2em] md:tracking-[0.3em] font-bold text-center bg-black/60 px-8 py-2.5 rounded-full border border-white/20 backdrop-blur-md shadow-[0_15px_30px_rgba(0,0,0,0.9)]">
+                 {winnerLabel} TIENE EL BALÓN
+               </p>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
