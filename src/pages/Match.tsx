@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
-import CoinFlip from '../components/CoinFlip'; // Módulo Custom Importado
+import CoinFlip from '../components/CoinFlip'; 
 import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
@@ -39,7 +39,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
     if (!isOnlineMatch) initGame(difficulty || 'Normal');
   }, [initGame, difficulty, isOnlineMatch]);
 
-  // Si estamos en modo Local, avanza la cinemática automáticamente
   useEffect(() => {
     if (!isOnlineMatch && introState === 'vs') {
       const timer = setTimeout(() => advanceIntro(), 3500);
@@ -81,7 +80,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   return (
     <div className="h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
 
-      {/* ================= FASE DE INTRO (VS -> MONEDA) ================= */}
+      {/* ================= FASE DE INTRO ================= */}
       <AnimatePresence>
         {introState !== 'none' && (
           <motion.div
@@ -93,18 +92,15 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
             {introState === 'vs' && (
               <motion.div className="flex flex-col md:flex-row items-center w-full justify-center" key="vs-screen" exit={{ scale: 1.5, opacity: 0 }}>
                  <motion.div initial={{ x: -300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 20, delay: 0.1 }} className="flex-1 flex flex-col items-center justify-center md:justify-end md:pr-16 text-center">
-                   {/* Spoiler de CARA eliminado */}
                    <h2 className="text-4xl md:text-7xl font-black text-cyan-400 tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(34,211,238,0.5)]">{playerLabel}</h2>
                  </motion.div>
                  <motion.div initial={{ scale: 0, opacity: 0, rotate: -180 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', bounce: 0.6, delay: 0.5 }} className="text-6xl md:text-8xl font-black italic text-white drop-shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10 my-8 md:my-0">VS</motion.div>
                  <motion.div initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 20, delay: 0.3 }} className="flex-1 flex flex-col items-center justify-center md:justify-start md:pl-16 text-center">
-                   {/* Spoiler de CRUZ eliminado */}
                    <h2 className="text-4xl md:text-7xl font-black text-red-500 tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(239,68,68,0.5)]">{rivalLabel}</h2>
                  </motion.div>
               </motion.div>
             )}
 
-            {/* AQUI SE LLAMA AL MODULO DE LA MONEDA 3D */}
             {(introState === 'coin_spin' || introState === 'coin_result') && (
               <CoinFlip 
                 phase={introState} 
@@ -196,17 +192,37 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
           )}
         </div>
 
-        {/* ZONA CENTRAL */}
+        {/* ZONA CENTRAL (VS y Balón Dinámico Animado) */}
         <div className="flex flex-col items-center justify-center pointer-events-none relative w-16 md:w-32">
            <motion.div className="text-3xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl" animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}>VS</motion.div>
            
            <AnimatePresence>
              {introState === 'none' && (
                <motion.div
-                 initial={{ scale: 0, opacity: 0 }}
-                 animate={{ scale: 1, opacity: 1, x: hasPossession === myRole ? -75 : 75 }}
-                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                 className="absolute text-3xl md:text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] z-30 animate-bounce"
+                 initial={{ 
+                   scale: 0, 
+                   opacity: 0,
+                   x: 0, 
+                   y: 0 
+                 }}
+                 animate={{ 
+                   scale: 1, 
+                   opacity: 1, 
+                   x: status === 'revealing' || status === 'resolving' 
+                      ? (hasPossession === myRole ? -75 : 75) // Si hay duelo, se mueve a un lado de las cartas
+                      : 0, // Si están jugando, se centra horizontalmente
+                   y: status === 'playing' || status === 'bot_thinking' 
+                      ? (hasPossession === myRole ? 130 : -130) // Tira "rodando" hacia abajo (jugador) o arriba (bot)
+                      : 0, // Regresa a su lugar en el choque
+                   rotate: status === 'playing' ? 360 : 0 // Da un pequeño giro extra simulando que rueda
+                 }}
+                 transition={{ 
+                   type: "spring", 
+                   stiffness: 200, 
+                   damping: 15,
+                   delay: status === 'playing' ? 0.3 : 0 // Un ligero retraso al sacar para más impacto
+                 }}
+                 className={`absolute text-3xl md:text-5xl drop-shadow-[0_0_20px_rgba(255,255,255,0.9)] z-30 ${status === 'playing' ? 'animate-pulse' : ''}`}
                >
                  ⚽
                </motion.div>
