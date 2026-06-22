@@ -111,30 +111,50 @@ body {
 
 @media (max-width: 767px) {
   .match-screen {
+    --mobile-card-width: 10rem;
+    --mobile-card-height: 14rem;
     --mobile-card-scale: clamp(0.5, calc((100vw - 2rem) / 40rem), 0.7);
     --mobile-board-slot-scale: clamp(0.58, calc((100vw - 2rem) / 34rem), 0.74);
+    height: 100svh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
+  .match-screen .match-bot-deck,
+  .match-screen .match-player-deck {
+    right: clamp(0.25rem, 1.4vw, 0.65rem);
+    width: clamp(2.7rem, 11vw, 3.05rem);
+    height: clamp(3.9rem, 16vw, 4.55rem);
+    border-radius: 0.75rem;
+  }
+
+  .match-screen .match-discard-pile {
+    left: clamp(0.25rem, 1.4vw, 0.65rem);
+    width: clamp(3.35rem, 13vw, 3.6rem);
+    height: clamp(4.75rem, 18vw, 5.1rem);
+    border-radius: 0.75rem;
   }
 
   .match-screen .match-bot-deck,
   .match-screen .match-bot-discard {
-    bottom: calc(50% + clamp(5.25rem, 13vw, 6.75rem));
+    bottom: calc(50% + clamp(5.75rem, 15vw, 6.65rem));
   }
 
   .match-screen .match-player-deck,
   .match-screen .match-player-discard {
-    top: calc(50% + clamp(5.25rem, 13vw, 6.75rem));
+    top: calc(50% + clamp(5.75rem, 15vw, 6.65rem));
   }
 
   .match-screen .match-player-hand {
-    padding-bottom: max(1.75rem, calc(env(safe-area-inset-bottom) + 1rem));
-    transform: translateY(-0.6rem);
+    padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom) + 0.45rem));
+    transform: translateY(0);
   }
 
   .match-screen .match-player-hand > div {
     gap: clamp(0.1rem, 0.9vw, 0.35rem);
     padding-inline: clamp(0.35rem, 1.8vw, 0.75rem);
-    padding-top: 0.75rem;
-    padding-bottom: 0.125rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0;
     overflow-x: visible;
   }
 
@@ -142,24 +162,25 @@ body {
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    width: 10rem;
-    height: 14rem;
+    width: var(--mobile-card-width);
+    height: var(--mobile-card-height);
     margin-inline: calc((1 - var(--mobile-card-scale)) * -5rem);
     scale: var(--mobile-card-scale);
     transform-origin: bottom center;
   }
 
   .match-screen .match-player-hand .match-hand-slot .match-card {
-    width: 10rem;
-    height: 14rem;
+    width: var(--mobile-card-width);
+    height: var(--mobile-card-height);
     padding: 0.625rem;
     border-radius: 1rem;
+    flex-shrink: 0;
     transform-origin: center;
   }
 
   .match-screen .match-board-slot {
-    width: 10rem;
-    height: 14rem;
+    width: var(--mobile-card-width);
+    height: var(--mobile-card-height);
     margin-inline: calc((1 - var(--mobile-board-slot-scale)) * -5rem);
     scale: var(--mobile-board-slot-scale);
     transform-origin: center;
@@ -170,6 +191,7 @@ body {
     height: 100%;
     padding: 0.625rem;
     border-radius: 1rem;
+    flex-shrink: 0;
     transform-origin: center;
   }
 
