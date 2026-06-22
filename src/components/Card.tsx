@@ -13,6 +13,7 @@ interface CardProps {
   isGalleryCard?: boolean;
   isRevealing?: boolean;
   isHidden?: boolean;
+  isHandCard?: boolean;
   highlightStat?: 'atk' | 'def';
   className?: string;
 }
@@ -32,7 +33,7 @@ const getSupabaseImageUrl = (filename: string) => {
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, highlightStat, className = '' }: CardProps) {
+export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, isHandCard, highlightStat, className = '' }: CardProps) {
   const isBot = card.owner === 'bot';
   const isLegend = card.isLegend;
 
@@ -50,7 +51,7 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
   const isNewDraw = !isBoardCard && !isDiscardCard && !isGalleryCard;
   const canInteract = !disabled && !isBoardCard && !isDiscardCard;
 
-  const initialDrawProps = isNewDraw
+  const initialDrawProps = isNewDraw && !isHandCard
     ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 }
     : false;
 
@@ -62,8 +63,8 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
     ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) }
     : {
         x: 0,
-        y: disabled ? 40 : 0,
-        scale: disabled ? 0.92 : 1,
+        y: disabled && !isHandCard ? 40 : 0,
+        scale: disabled && !isHandCard ? 0.92 : 1,
         filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)",
         opacity: 1,
         rotateX: 0,

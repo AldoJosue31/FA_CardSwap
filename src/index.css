@@ -109,6 +109,77 @@ body {
   }
 }
 
+@media (max-width: 767px) {
+  .match-screen {
+    --mobile-card-scale: clamp(0.5, calc((100vw - 2rem) / 40rem), 0.7);
+    --mobile-board-slot-scale: clamp(0.58, calc((100vw - 2rem) / 34rem), 0.74);
+  }
+
+  .match-screen .match-bot-deck,
+  .match-screen .match-bot-discard {
+    bottom: calc(50% + clamp(5.25rem, 13vw, 6.75rem));
+  }
+
+  .match-screen .match-player-deck,
+  .match-screen .match-player-discard {
+    top: calc(50% + clamp(5.25rem, 13vw, 6.75rem));
+  }
+
+  .match-screen .match-player-hand {
+    padding-bottom: max(1.75rem, calc(env(safe-area-inset-bottom) + 1rem));
+    transform: translateY(-0.6rem);
+  }
+
+  .match-screen .match-player-hand > div {
+    gap: clamp(0.1rem, 0.9vw, 0.35rem);
+    padding-inline: clamp(0.35rem, 1.8vw, 0.75rem);
+    padding-top: 0.75rem;
+    padding-bottom: 0.125rem;
+    overflow-x: visible;
+  }
+
+  .match-screen .match-player-hand .match-hand-slot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 10rem;
+    height: 14rem;
+    margin-inline: calc((1 - var(--mobile-card-scale)) * -5rem);
+    scale: var(--mobile-card-scale);
+    transform-origin: bottom center;
+  }
+
+  .match-screen .match-player-hand .match-hand-slot .match-card {
+    width: 10rem;
+    height: 14rem;
+    padding: 0.625rem;
+    border-radius: 1rem;
+    transform-origin: center;
+  }
+
+  .match-screen .match-board-slot {
+    width: 10rem;
+    height: 14rem;
+    margin-inline: calc((1 - var(--mobile-board-slot-scale)) * -5rem);
+    scale: var(--mobile-board-slot-scale);
+    transform-origin: center;
+  }
+
+  .match-screen .match-board-slot .match-card {
+    width: 100%;
+    height: 100%;
+    padding: 0.625rem;
+    border-radius: 1rem;
+    transform-origin: center;
+  }
+
+  .match-screen .match-board-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 1rem;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);

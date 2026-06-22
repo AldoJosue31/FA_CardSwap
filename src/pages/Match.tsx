@@ -131,20 +131,20 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white/40 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      <div className="absolute right-6 md:right-16 bottom-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
+      <div className="match-bot-deck absolute right-6 md:right-16 bottom-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
       </div>
-      <div className="absolute right-6 md:right-16 top-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
+      <div className="match-player-deck absolute right-6 md:right-16 top-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
       </div>
 
-      <div className="match-discard-pile absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+      <div className="match-discard-pile match-bot-discard absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-500 absolute -top-5">USADAS</span>
         {botDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
-      <div className="match-discard-pile absolute left-6 md:left-16 top-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+      <div className="match-discard-pile match-player-discard absolute left-6 md:left-16 top-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-400 absolute -bottom-5">USADAS</span>
         {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
@@ -175,7 +175,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         
         {/* Contenedor Carta Jugador */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {!playerBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
+          {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           {playerBoardCard && (
             <>
               <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card" />
@@ -232,7 +232,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
         {/* Contenedor Carta Rival */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {!botBoardCard && <div className="absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
+          {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
           {botBoardCard && (
             <>
               <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card" />
@@ -253,7 +253,9 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       <div className="match-player-hand flex justify-center items-end pb-4 md:pb-6 z-10 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {playerHand.map((card: CardData) => (
-            <Card key={card.id} card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} className="match-card" />
+            <div key={card.id} className="match-hand-slot">
+              <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} isHandCard className="match-card" />
+            </div>
           ))}
         </div>
       </div>
