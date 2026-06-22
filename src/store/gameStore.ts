@@ -40,6 +40,23 @@ const refillHand = (hand: CardData[], deck: CardData[]) => {
 const createMatchDeck = (cards: CardData[], prefix: 'player' | 'bot') =>
   cards.map((card, index) => ({ ...card, id: `${prefix}-${card.id}-${index}`, owner: prefix as 'player' | 'bot' }));
 
+const resolveRoundScore = (playerCard: CardData, botCard: CardData, possession: 'player' | 'bot') => {
+  const playerIsAttacking = possession === 'player';
+  const attackValue = playerIsAttacking ? playerCard.atk : botCard.atk;
+  const defenseValue = playerIsAttacking ? botCard.def : playerCard.def;
+  const attackScores = attackValue > defenseValue;
+
+  return {
+    playerScores: attackScores && playerIsAttacking,
+    botScores: attackScores && !playerIsAttacking,
+    message: attackScores
+      ? playerIsAttacking ? '¡Golazo! Buen ataque' : 'Gol del Bot.'
+      : attackValue === defenseValue
+        ? '¡Empate!'
+        : playerIsAttacking ? 'El Bot defendió mejor' : '¡Defensa perfecta!',
+  };
+};
+
 export const useGameStore = create<GameState>((set, get) => ({
   difficulty: 'Normal',
   introState: 'vs',
@@ -148,28 +165,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             setTimeout(() => {
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
-              const pPossession = get().hasPossession === 'player';
-
-              const pScoreVal = pPossession ? pCard.atk : pCard.def;
-              const bScoreVal = pPossession ? bCard.def : bCard.atk;
-
-              let winnerMsg = '';
-              let newPossession: 'player' | 'bot' = get().hasPossession;
-
-              if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-                newPossession = 'player';
-                set((state) => ({ playerScore: state.playerScore + 1 }));
-              } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del Bot.';
-                newPossession = 'bot';
-                set((state) => ({ botScore: state.botScore + 1 }));
-              } else {
-                winnerMsg = '¡Empate! Balón dividido';
-                newPossession = pPossession ? 'bot' : 'player';
-              }
-
-              set({ message: winnerMsg, hasPossession: newPossession });
+              const currentPossession = get().hasPossession;
+              const result = resolveRoundScore(pCard, bCard, currentPossession);
+              set((state) => ({
+                playerScore: result.playerScores ? state.playerScore + 1 : state.playerScore,
+                botScore: result.botScores ? state.botScore + 1 : state.botScore,
+                message: result.message,
+              }));
 
               setTimeout(() => {
                 set((state) => ({
@@ -183,6 +185,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                   const state = get();
                   const playerRefill = refillHand(state.playerHand, state.playerDeck);
                   const botRefill = refillHand(state.botHand, state.botDeck);
+                  const nextPossession: 'player' | 'bot' = state.hasPossession === 'player' ? 'bot' : 'player';
 
                   if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
                     set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
@@ -192,11 +195,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                       playerDeck: playerRefill.deck,
                       botHand: botRefill.hand,
                       botDeck: botRefill.deck,
+                      hasPossession: nextPossession,
                       status: 'playing',
-                      currentTurn: state.hasPossession,
-                      message: state.hasPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
+                      currentTurn: nextPossession,
+                      message: nextPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
                     });
-                    if (state.hasPossession === 'bot') get().triggerBotPlay();
+                    if (nextPossession === 'bot') get().triggerBotPlay();
                   }
                 }, 600);
               }, 1800);
@@ -230,28 +234,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             setTimeout(() => {
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
-              const pPossession = get().hasPossession === 'player';
-
-              const pScoreVal = pPossession ? pCard.atk : pCard.def;
-              const bScoreVal = pPossession ? bCard.def : bCard.atk;
-
-              let winnerMsg = '';
-              let newPossession: 'player' | 'bot' = get().hasPossession;
-
-              if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-                newPossession = 'player';
-                set((state) => ({ playerScore: state.playerScore + 1 }));
-              } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del Bot.';
-                newPossession = 'bot';
-                set((state) => ({ botScore: state.botScore + 1 }));
-              } else {
-                winnerMsg = '¡Empate! Balón dividido';
-                newPossession = pPossession ? 'bot' : 'player';
-              }
-
-              set({ message: winnerMsg, hasPossession: newPossession });
+              const currentPossession = get().hasPossession;
+              const result = resolveRoundScore(pCard, bCard, currentPossession);
+              set((state) => ({
+                playerScore: result.playerScores ? state.playerScore + 1 : state.playerScore,
+                botScore: result.botScores ? state.botScore + 1 : state.botScore,
+                message: result.message,
+              }));
 
               setTimeout(() => {
                 set((state) => ({
@@ -265,6 +254,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                   const state = get();
                   const playerRefill = refillHand(state.playerHand, state.playerDeck);
                   const botRefill = refillHand(state.botHand, state.botDeck);
+                  const nextPossession: 'player' | 'bot' = state.hasPossession === 'player' ? 'bot' : 'player';
 
                   if (playerRefill.hand.length === 0 && playerRefill.deck.length === 0) {
                     set({ status: 'gameover', message: 'FIN DEL PARTIDO' });
@@ -274,11 +264,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                       playerDeck: playerRefill.deck,
                       botHand: botRefill.hand,
                       botDeck: botRefill.deck,
+                      hasPossession: nextPossession,
                       status: 'playing',
-                      currentTurn: state.hasPossession,
-                      message: state.hasPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
+                      currentTurn: nextPossession,
+                      message: nextPossession === 'player' ? '¡Atacas tú!' : '¡Defiende!'
                     });
-                    if (state.hasPossession === 'bot') get().triggerBotPlay();
+                    if (nextPossession === 'bot') get().triggerBotPlay();
                   }
                 }, 600);
               }, 1800);

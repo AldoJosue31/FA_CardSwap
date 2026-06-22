@@ -329,30 +329,23 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
       setState((current) => {
         if (!current?.playerBoardCard || !current.botBoardCard) return current;
         const pPossession = current.hasPossession === current.role;
-        const pScoreVal = pPossession ? current.playerBoardCard.atk : current.playerBoardCard.def;
-        const bScoreVal = pPossession ? current.botBoardCard.def : current.botBoardCard.atk;
+        const attackValue = pPossession ? current.playerBoardCard.atk : current.botBoardCard.atk;
+        const defenseValue = pPossession ? current.botBoardCard.def : current.playerBoardCard.def;
 
-        let playerWins = pScoreVal > bScoreVal;
-        let opponentWins = bScoreVal > pScoreVal;
-        let newPossession = current.hasPossession;
+        const attackScores = attackValue > defenseValue;
+        const playerScores = attackScores && pPossession;
+        const opponentScores = attackScores && !pPossession;
 
-        let winnerMsg = '';
-        if (playerWins) {
-            winnerMsg = pPossession ? '¡Golazo! Retienes el balón' : '¡Robo! Tu atacas';
-            newPossession = current.role;
-        } else if (opponentWins) {
-            winnerMsg = pPossession ? 'Te robaron el balón' : 'Gol del rival.';
-            newPossession = current.opponentRole;
-        } else {
-            winnerMsg = '¡Empate! Balón dividido';
-            newPossession = current.opponentRole;
-        }
+        const winnerMsg = attackScores
+          ? pPossession ? '¡Golazo! Buen ataque' : 'Gol del rival.'
+          : defenseValue > attackValue
+            ? pPossession ? 'El rival defendió mejor' : '¡Defensa perfecta!'
+            : '¡Empate!';
 
         return {
           ...current,
-          playerScore: playerWins ? current.playerScore + 1 : current.playerScore,
-          botScore: opponentWins ? current.botScore + 1 : current.botScore,
-          hasPossession: newPossession,
+          playerScore: playerScores ? current.playerScore + 1 : current.playerScore,
+          botScore: opponentScores ? current.botScore + 1 : current.botScore,
           message: winnerMsg,
         };
       });
@@ -363,10 +356,11 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
           const playerRefill = refillHand(current.playerHand, current.playerDeck);
           const opponentRefill = refillHand(current.botHand, current.botDeck);
           const nextRound = current.round + 1;
+          const nextPossession = otherRole(current.hasPossession);
           const isGameOver = playerRefill.hand.length === 0 && playerRefill.deck.length === 0 && opponentRefill.hand.length === 0 && opponentRefill.deck.length === 0;
 
           const nextState: OnlineGameState = {
-            ...current, round: nextRound, currentTurn: current.hasPossession,
+            ...current, round: nextRound, hasPossession: nextPossession, currentTurn: nextPossession,
             playerHand: playerRefill.hand, playerDeck: playerRefill.deck, playerDiscard: [...current.playerDiscard, current.playerBoardCard],
             botHand: opponentRefill.hand, botDeck: opponentRefill.deck, botDiscard: [...current.botDiscard, current.botBoardCard],
             playerBoardCard: null, botBoardCard: null, status: isGameOver ? 'gameover' : 'playing',
