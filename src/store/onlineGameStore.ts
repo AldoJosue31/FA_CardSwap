@@ -329,25 +329,23 @@ export const useOnlineMatch = (session?: OnlineSession | null) => {
       setState((current) => {
         if (!current?.playerBoardCard || !current.botBoardCard) return current;
         const pPossession = current.hasPossession === current.role;
-        const pScoreVal = pPossession ? current.playerBoardCard.atk : current.playerBoardCard.def;
-        const bScoreVal = pPossession ? current.botBoardCard.def : current.botBoardCard.atk;
+        const attackValue = pPossession ? current.playerBoardCard.atk : current.botBoardCard.atk;
+        const defenseValue = pPossession ? current.botBoardCard.def : current.playerBoardCard.def;
 
-        let playerWins = pScoreVal > bScoreVal;
-        let opponentWins = bScoreVal > pScoreVal;
+        const attackScores = attackValue > defenseValue;
+        const playerScores = attackScores && pPossession;
+        const opponentScores = attackScores && !pPossession;
 
-        let winnerMsg = '';
-        if (playerWins) {
-            winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
-        } else if (opponentWins) {
-            winnerMsg = pPossession ? 'El rival defendió mejor' : 'Gol del rival.';
-        } else {
-            winnerMsg = '¡Empate!';
-        }
+        const winnerMsg = attackScores
+          ? pPossession ? '¡Golazo! Buen ataque' : 'Gol del rival.'
+          : defenseValue > attackValue
+            ? pPossession ? 'El rival defendió mejor' : '¡Defensa perfecta!'
+            : '¡Empate!';
 
         return {
           ...current,
-          playerScore: playerWins ? current.playerScore + 1 : current.playerScore,
-          botScore: opponentWins ? current.botScore + 1 : current.botScore,
+          playerScore: playerScores ? current.playerScore + 1 : current.playerScore,
+          botScore: opponentScores ? current.botScore + 1 : current.botScore,
           message: winnerMsg,
         };
       });

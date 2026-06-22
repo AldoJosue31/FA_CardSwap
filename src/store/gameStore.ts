@@ -40,6 +40,23 @@ const refillHand = (hand: CardData[], deck: CardData[]) => {
 const createMatchDeck = (cards: CardData[], prefix: 'player' | 'bot') =>
   cards.map((card, index) => ({ ...card, id: `${prefix}-${card.id}-${index}`, owner: prefix as 'player' | 'bot' }));
 
+const resolveRoundScore = (playerCard: CardData, botCard: CardData, possession: 'player' | 'bot') => {
+  const playerIsAttacking = possession === 'player';
+  const attackValue = playerIsAttacking ? playerCard.atk : botCard.atk;
+  const defenseValue = playerIsAttacking ? botCard.def : playerCard.def;
+  const attackScores = attackValue > defenseValue;
+
+  return {
+    playerScores: attackScores && playerIsAttacking,
+    botScores: attackScores && !playerIsAttacking,
+    message: attackScores
+      ? playerIsAttacking ? '¡Golazo! Buen ataque' : 'Gol del Bot.'
+      : attackValue === defenseValue
+        ? '¡Empate!'
+        : playerIsAttacking ? 'El Bot defendió mejor' : '¡Defensa perfecta!',
+  };
+};
+
 export const useGameStore = create<GameState>((set, get) => ({
   difficulty: 'Normal',
   introState: 'vs',
@@ -149,24 +166,12 @@ export const useGameStore = create<GameState>((set, get) => ({
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
               const currentPossession = get().hasPossession;
-              const pPossession = currentPossession === 'player';
-
-              const pScoreVal = pPossession ? pCard.atk : pCard.def;
-              const bScoreVal = pPossession ? bCard.def : bCard.atk;
-
-              let winnerMsg = '';
-
-              if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
-                set((state) => ({ playerScore: state.playerScore + 1 }));
-              } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'El Bot defendió mejor' : 'Gol del Bot.';
-                set((state) => ({ botScore: state.botScore + 1 }));
-              } else {
-                winnerMsg = '¡Empate!';
-              }
-
-              set({ message: winnerMsg });
+              const result = resolveRoundScore(pCard, bCard, currentPossession);
+              set((state) => ({
+                playerScore: result.playerScores ? state.playerScore + 1 : state.playerScore,
+                botScore: result.botScores ? state.botScore + 1 : state.botScore,
+                message: result.message,
+              }));
 
               setTimeout(() => {
                 set((state) => ({
@@ -230,24 +235,12 @@ export const useGameStore = create<GameState>((set, get) => ({
               const pCard = get().playerBoardCard!;
               const bCard = get().botBoardCard!;
               const currentPossession = get().hasPossession;
-              const pPossession = currentPossession === 'player';
-
-              const pScoreVal = pPossession ? pCard.atk : pCard.def;
-              const bScoreVal = pPossession ? bCard.def : bCard.atk;
-
-              let winnerMsg = '';
-
-              if (pScoreVal > bScoreVal) {
-                winnerMsg = pPossession ? '¡Golazo! Buen ataque' : '¡Defensa perfecta!';
-                set((state) => ({ playerScore: state.playerScore + 1 }));
-              } else if (bScoreVal > pScoreVal) {
-                winnerMsg = pPossession ? 'El Bot defendió mejor' : 'Gol del Bot.';
-                set((state) => ({ botScore: state.botScore + 1 }));
-              } else {
-                winnerMsg = '¡Empate!';
-              }
-
-              set({ message: winnerMsg });
+              const result = resolveRoundScore(pCard, bCard, currentPossession);
+              set((state) => ({
+                playerScore: result.playerScores ? state.playerScore + 1 : state.playerScore,
+                botScore: result.botScores ? state.botScore + 1 : state.botScore,
+                message: result.message,
+              }));
 
               setTimeout(() => {
                 set((state) => ({

@@ -29,7 +29,7 @@ export const MOCK_DECK: CardData[] = [
   { id: 'c13', name: 'P. Maldino', pos: 'DEF', atk: 45, def: 95, nationality: 'ITA', image: 'Maldino.png', isLegend: true },// Real: Paolo Maldini
   { id: 'c14', name: 'F. Beckenburger', pos: 'DEF', atk: 65, def: 94, nationality: 'GER', image: '', isLegend: true },   // Real: Franz Beckenbauer
   { id: 'c15', name: 'F. Carnivaro', pos: 'DEF', atk: 35, def: 91, nationality: 'ITA', image: 'Carnivaro.png', isLegend: true },// Real: Fabio Cannavaro
-  { id: 'c16', name: 'J. Zaneta', pos: 'DEF', atk: 55, def: 88, nationality: 'ARG', image: '', isLegend: true },         // Real: Javier Zanetti
+  { id: 'c16', name: 'J. Zaneta', pos: 'DEF', atk: 55, def: 88, nationality: 'ARG', image: 'Zaneta.png', isLegend: true },         // Real: Javier Zanetti
 
   // --- LEYENDAS Y JUGADORES SOLICITADOS (Manteniendo ID y foto exacta) ---
   { id: 'c7', name: 'Piedri', pos: 'MED', atk: 86, def: 60, nationality: 'ESP', image: 'Piedri.png' },                 // Real: Pedri
