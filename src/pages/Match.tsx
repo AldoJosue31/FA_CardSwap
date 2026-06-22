@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
 import CoinFlip from '../components/CoinFlip'; 
+import AnimatedBall from '../components/AnimatedBall';
 import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
@@ -203,28 +204,31 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                    scale: 0, 
                    opacity: 0,
                    x: 0, 
-                   y: 0 
+                   y: 0,
+                   rotate: 0
                  }}
                  animate={{ 
                    scale: 1, 
                    opacity: 1, 
                    x: status === 'revealing' || status === 'resolving' 
-                      ? (hasPossession === myRole ? -75 : 75) // Si hay duelo, se mueve a un lado de las cartas
-                      : 0, // Si están jugando, se centra horizontalmente
+                      ? (hasPossession === myRole ? -75 : 75) 
+                      : 0, 
                    y: status === 'playing' || status === 'bot_thinking' 
-                      ? (hasPossession === myRole ? 130 : -130) // Tira "rodando" hacia abajo (jugador) o arriba (bot)
-                      : 0, // Regresa a su lugar en el choque
-                   rotate: status === 'playing' ? 360 : 0 // Da un pequeño giro extra simulando que rueda
+                      ? (hasPossession === myRole ? 130 : -130) 
+                      : 0, 
+                   rotate: status === 'playing' || status === 'bot_thinking'
+                      ? (hasPossession === myRole ? 720 : -720) 
+                      : (status === 'revealing' ? (hasPossession === myRole ? -360 : 360) : 0)
                  }}
                  transition={{ 
                    type: "spring", 
-                   stiffness: 200, 
-                   damping: 15,
-                   delay: status === 'playing' ? 0.3 : 0 // Un ligero retraso al sacar para más impacto
+                   stiffness: 180, 
+                   damping: 18,
+                   delay: status === 'playing' ? 0.3 : 0 
                  }}
-                 className={`absolute text-3xl md:text-5xl drop-shadow-[0_0_20px_rgba(255,255,255,0.9)] z-30 ${status === 'playing' ? 'animate-pulse' : ''}`}
+                 className={`absolute z-30 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] ${status === 'playing' ? 'animate-pulse' : ''}`}
                >
-                 ⚽
+                 <AnimatedBall />
                </motion.div>
              )}
            </AnimatePresence>
