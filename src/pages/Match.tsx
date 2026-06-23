@@ -77,11 +77,71 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   
   const botCardWasPlayedFirst = hasPossession === opponentRole;
   const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
-  const ballDuelOffset = isCompactLayout ? 40 : 75;
   const ballTurnOffset = isCompactLayout ? 82 : 130;
-
   const coinFace = hasPossession === myRole ? (isHost ? 'CARA' : 'CRUZ') : (isHost ? 'CRUZ' : 'CARA');
   const coinWinnerLabel = hasPossession === myRole ? playerLabel : rivalLabel;
+
+  // =========================================================================================
+  // LOGICA DEL GOL Y BALON (CORREGIDA)
+  // =========================================================================================
+  let isGoal = false;
+  let goalScorer: string | null = null;
+  
+  // Calculamos en tiempo real si hay gol al momento de resolver las cartas
+  if (status === 'resolving' && playerBoardCard && botBoardCard) {
+    // Lectura segura: Busca .atk directo o dentro de .stats
+    const pAtk = playerBoardCard.atk !== undefined ? playerBoardCard.atk : (playerBoardCard.stats?.atk || 0);
+    const pDef = playerBoardCard.def !== undefined ? playerBoardCard.def : (playerBoardCard.stats?.def || 0);
+    const bAtk = botBoardCard.atk !== undefined ? botBoardCard.atk : (botBoardCard.stats?.atk || 0);
+    const bDef = botBoardCard.def !== undefined ? botBoardCard.def : (botBoardCard.stats?.def || 0);
+
+    if (hasPossession === myRole) {
+      if (pAtk > bDef) {
+        isGoal = true;
+        goalScorer = myRole;
+      }
+    } else if (hasPossession === opponentRole) {
+      if (bAtk > pDef) {
+        isGoal = true;
+        goalScorer = opponentRole;
+      }
+    }
+  }
+
+  // Estados de animación para que la carta se agache (Ducking)
+  const isPlayerDucking = status === 'resolving' && goalScorer === opponentRole;
+  const isBotDucking = status === 'resolving' && goalScorer === myRole;
+
+  // Distancias precisas para la cancha (Cálculos de Flexbox a coordenadas)
+  const ballDuelOffset = isCompactLayout ? 90 : 210; // Distancia a la carta (Atacante/Defensor)
+  const ballGoalOffset = isCompactLayout ? 160 : 360; // Distancia profunda hacia la red
+
+  let ballX = 0;
+  let ballY = 0;
+  let ballRotate = 0;
+  let ballScale = 1;
+
+  if (status === 'playing' || status === 'bot_thinking') {
+    ballY = hasPossession === myRole ? ballTurnOffset : -ballTurnOffset;
+    ballRotate = hasPossession === myRole ? 720 : -720;
+  } else if (status === 'revealing') {
+    // El balón se posiciona sobre la carta del ATACANTE
+    ballX = hasPossession === myRole ? -ballDuelOffset : ballDuelOffset;
+    ballRotate = hasPossession === myRole ? -360 : 360;
+  } else if (status === 'resolving') {
+    if (isGoal) {
+      // ¡TIRO A GOL! El balón cruza la cancha hacia la portería rival
+      ballX = goalScorer === myRole ? ballGoalOffset : -ballGoalOffset;
+      ballScale = 0.5; // Efecto de profundidad en la red
+      ballRotate = goalScorer === myRole ? 1080 : -1080; // Giro rápido de disparo
+    } else {
+      // ¡BLOQUEO! El balón sale del atacante y choca contra el defensa
+      // Restamos unos pixeles para que parezca que choca contra el pecho de la carta
+      ballX = hasPossession === myRole ? (ballDuelOffset - (isCompactLayout ? 20 : 40)) : (-ballDuelOffset + (isCompactLayout ? 20 : 40));
+      ballRotate = hasPossession === myRole ? 360 : -360;
+    }
+  }
+  // =========================================================================================
 
   return (
     <div className="match-screen h-[100svh] max-h-[100svh] min-h-0 w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
@@ -132,38 +192,32 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         >II</button>
       )}
 
-      {/* =========================================================================
-          AJUSTE: Líneas de la cancha (Remarcadas, más gruesas y uniformes)
-      ========================================================================= */}
+      {/* Líneas de la cancha (Remarcadas, más gruesas y uniformes) */}
       <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] md:border-[3px] border-white/40 rounded-lg pointer-events-none flex items-center justify-center z-0 overflow-hidden shadow-[0_0_15px_rgba(255,255,255,0.15)]">
-        {/* LÍNEA CENTRAL VERTICAL */}
         <div className="absolute left-1/2 top-0 bottom-0 w-[2px] md:w-[3px] bg-white/40 -translate-x-1/2 shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>
-        {/* CÍRCULO CENTRAL */}
         <div className="absolute left-1/2 top-1/2 w-32 h-32 md:w-48 md:h-48 border-[2px] md:border-[3px] border-white/40 rounded-full -translate-x-1/2 -translate-y-1/2 backdrop-blur-[1px] shadow-[inset_0_0_10px_rgba(255,255,255,0.1),0_0_10px_rgba(255,255,255,0.1)]"></div>
-        {/* PUNTO CENTRAL */}
         <div className="absolute left-1/2 top-1/2 w-3 h-3 md:w-4 md:h-4 bg-white/70 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(255,255,255,0.3)]"></div>
       </div>
-      {/* ========================================================================= */}
 
-      {/* Bot Deck (Mazo Rival) - Esquina Superior Derecha */}
+      {/* Bot Deck (Mazo Rival) */}
       <div className="match-bot-deck absolute !right-1 sm:!right-4 md:!right-8 lg:!right-12 !top-[8%] sm:!top-[12%] md:!top-[15%] !bottom-auto w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
       </div>
 
-      {/* Player Deck (Mazo Jugador) - Esquina Inferior Derecha */}
+      {/* Player Deck (Mazo Jugador) */}
       <div className="match-player-deck absolute !right-1 sm:!right-4 md:!right-8 lg:!right-12 !bottom-[18%] sm:!bottom-[22%] md:!bottom-[25%] !top-auto w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
       </div>
 
-      {/* Bot Discard (Usadas Rival) - Esquina Superior Izquierda */}
+      {/* Bot Discard (Usadas Rival) */}
       <div className="match-discard-pile match-bot-discard absolute !left-1 sm:!left-4 md:!left-8 lg:!left-12 !top-[8%] sm:!top-[12%] md:!top-[15%] !bottom-auto w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-500 absolute -top-5">USADAS</span>
         {botDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
 
-      {/* Player Discard (Usadas Jugador) - Esquina Inferior Izquierda */}
+      {/* Player Discard (Usadas Jugador) */}
       <div className="match-discard-pile match-player-discard absolute !left-1 sm:!left-4 md:!left-8 lg:!left-12 !bottom-[18%] sm:!bottom-[22%] md:!bottom-[25%] !top-auto w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-400 absolute -bottom-5">USADAS</span>
         {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
@@ -193,15 +247,25 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-2 sm:gap-3 md:gap-16 z-10 perspective-1000 my-1 md:my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
         
-        {/* Contenedor Carta Jugador */}
+        {/* =======================================================
+            CARTA DEL JUGADOR (CON ANIMACIÓN DE CAÍDA / DUCKING)
+        ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {/* PORTERÍA DEL JUGADOR */}
           <GoalNet isPlayer={true} />
 
           {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
+          
           {playerBoardCard && (
             <>
-              <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card" />
+              <motion.div 
+                className="absolute inset-0 z-10 flex items-center justify-center"
+                animate={isPlayerDucking ? { rotateX: 75, y: 30, scale: 0.9, opacity: 0.4 } : { rotateX: 0, y: 0, scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                style={{ transformOrigin: 'bottom' }}
+              >
+                <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card w-full h-full" />
+              </motion.div>
+
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -215,37 +279,19 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
           )}
         </div>
 
-        {/* ZONA CENTRAL (VS y Balón Dinámico Animado) */}
+        {/* ZONA CENTRAL Y ANIMACIÓN DEL BALÓN PROYECTIL */}
         <div className="flex flex-col items-center justify-center pointer-events-none relative w-12 md:w-32">
            <motion.div className="text-2xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl" animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}>VS</motion.div>
            
            <AnimatePresence>
              {introState === 'none' && (
                <motion.div
-                 initial={{ 
-                   scale: 0, 
-                   opacity: 0,
-                   x: 0, 
-                   y: 0,
-                   rotate: 0
-                 }}
-                 animate={{ 
-                   scale: 1, 
-                   opacity: 1, 
-                   x: status === 'revealing' || status === 'resolving' 
-                      ? (hasPossession === myRole ? -ballDuelOffset : ballDuelOffset) 
-                      : 0, 
-                   y: status === 'playing' || status === 'bot_thinking' 
-                      ? (hasPossession === myRole ? ballTurnOffset : -ballTurnOffset) 
-                      : 0, 
-                   rotate: status === 'playing' || status === 'bot_thinking'
-                      ? (hasPossession === myRole ? 720 : -720) 
-                      : (status === 'revealing' ? (hasPossession === myRole ? -360 : 360) : 0)
-                 }}
+                 initial={{ scale: 0, opacity: 0, x: 0, y: 0, rotate: 0 }}
+                 animate={{ scale: ballScale, opacity: 1, x: ballX, y: ballY, rotate: ballRotate }}
                  transition={{ 
                    type: "spring", 
-                   stiffness: 180, 
-                   damping: 18,
+                   stiffness: status === 'resolving' ? (isGoal ? 120 : 160) : 180, 
+                   damping: status === 'resolving' ? (isGoal ? 12 : 16) : 18,
                    delay: status === 'playing' ? 0.3 : 0 
                  }}
                  className={`absolute z-30 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] ${status === 'playing' ? 'animate-pulse' : ''}`}
@@ -256,15 +302,25 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
            </AnimatePresence>
         </div>
 
-        {/* Contenedor Carta Rival */}
+        {/* =======================================================
+            CARTA DEL RIVAL (CON ANIMACIÓN DE CAÍDA / DUCKING)
+        ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {/* PORTERÍA DEL RIVAL */}
           <GoalNet isPlayer={false} />
 
           {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
+          
           {botBoardCard && (
             <>
-              <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card" />
+              <motion.div 
+                className="absolute inset-0 z-10 flex items-center justify-center"
+                animate={isBotDucking ? { rotateX: 75, y: 30, scale: 0.9, opacity: 0.4 } : { rotateX: 0, y: 0, scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                style={{ transformOrigin: 'bottom' }}
+              >
+                <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card w-full h-full" />
+              </motion.div>
+
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
