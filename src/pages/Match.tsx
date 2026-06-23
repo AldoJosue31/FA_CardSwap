@@ -15,6 +15,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const [isPaused, setIsPaused] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const isOnlineMatch = Boolean(onlineSession);
+  const isCompactLayout = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
   // GARANTÍA DE TURNO LIBERADO
   const activeGame = isOnlineMatch ? onlineGame : { ...localGame, canPlay: localGame.status === 'playing' && localGame.introState === 'none' && localGame.currentTurn === 'player' && !localGame.playerBoardCard };
@@ -74,12 +75,14 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   
   const botCardWasPlayedFirst = hasPossession === opponentRole;
   const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
+  const ballDuelOffset = isCompactLayout ? 40 : 75;
+  const ballTurnOffset = isCompactLayout ? 82 : 130;
 
   const coinFace = hasPossession === myRole ? (isHost ? 'CARA' : 'CRUZ') : (isHost ? 'CRUZ' : 'CARA');
   const coinWinnerLabel = hasPossession === myRole ? playerLabel : rivalLabel;
 
   return (
-    <div className="match-screen h-screen w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
+    <div className="match-screen h-[100svh] max-h-[100svh] min-h-0 w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
 
       {/* ================= FASE DE INTRO ================= */}
       <AnimatePresence>
@@ -150,29 +153,29 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
 
-      <header className="relative z-10 flex justify-center pt-4 shrink-0 pointer-events-none">
-        <div className="bg-black/60 backdrop-blur-lg border border-white/10 px-6 md:px-10 py-2 md:py-3 rounded-full flex gap-8 md:gap-16 items-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] pointer-events-auto">
-          <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-tighter">
+      <header className="relative z-10 flex justify-center pt-2 md:pt-4 shrink-0 pointer-events-none">
+        <div className="max-w-[calc(100vw-3.75rem)] bg-black/60 backdrop-blur-lg border border-white/10 px-3 md:px-10 py-1.5 md:py-3 rounded-full flex gap-3 md:gap-16 items-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] pointer-events-auto">
+          <div className="text-base sm:text-xl md:text-3xl font-black text-cyan-400 tracking-tighter whitespace-nowrap">
             {playerLabel}: {playerScore}
           </div>
-          <div className="text-[10px] md:text-xs font-medium tracking-[0.2em] text-slate-300 uppercase">{statusMessage}</div>
-          <div className="text-xl md:text-3xl font-black text-red-500 tracking-tighter">
+          <div className="max-w-[7rem] sm:max-w-none truncate text-[8px] md:text-xs font-medium tracking-[0.16em] md:tracking-[0.2em] text-slate-300 uppercase">{statusMessage}</div>
+          <div className="text-base sm:text-xl md:text-3xl font-black text-red-500 tracking-tighter whitespace-nowrap">
             {botScore} :{rivalLabel}
           </div>
         </div>
       </header>
 
-      <div className="flex justify-center items-start mt-2 md:mt-4 z-10 opacity-90 origin-top shrink-0">
-        <div className="flex justify-center gap-2 md:gap-3.5 overflow-x-auto px-4 md:px-10 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex justify-center items-start mt-1 md:mt-4 z-10 opacity-90 origin-top shrink-0">
+        <div className="flex justify-center gap-1.5 md:gap-3.5 overflow-x-auto px-3 md:px-10 pb-2 md:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {botHand.map((card: CardData) => (
-            <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="match-hidden-card w-16 h-24 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+            <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="match-hidden-card w-12 h-[4.5rem] sm:w-14 sm:h-20 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
               <span className="text-2xl md:text-3xl opacity-20">⚽</span>
             </motion.div>
           ))}
         </div>
       </div>
 
-      <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-6 md:gap-16 z-10 perspective-1000 my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
+      <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-2 sm:gap-3 md:gap-16 z-10 perspective-1000 my-1 md:my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
         
         {/* Contenedor Carta Jugador */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
@@ -194,8 +197,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </div>
 
         {/* ZONA CENTRAL (VS y Balón Dinámico Animado) */}
-        <div className="flex flex-col items-center justify-center pointer-events-none relative w-16 md:w-32">
-           <motion.div className="text-3xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl" animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}>VS</motion.div>
+        <div className="flex flex-col items-center justify-center pointer-events-none relative w-12 md:w-32">
+           <motion.div className="text-2xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl" animate={{ color: status === 'revealing' ? '#22d3ee' : 'rgba(255,255,255,0.2)' }}>VS</motion.div>
            
            <AnimatePresence>
              {introState === 'none' && (
@@ -211,10 +214,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                    scale: 1, 
                    opacity: 1, 
                    x: status === 'revealing' || status === 'resolving' 
-                      ? (hasPossession === myRole ? -75 : 75) 
+                      ? (hasPossession === myRole ? -ballDuelOffset : ballDuelOffset) 
                       : 0, 
                    y: status === 'playing' || status === 'bot_thinking' 
-                      ? (hasPossession === myRole ? 130 : -130) 
+                      ? (hasPossession === myRole ? ballTurnOffset : -ballTurnOffset) 
                       : 0, 
                    rotate: status === 'playing' || status === 'bot_thinking'
                       ? (hasPossession === myRole ? 720 : -720) 
@@ -228,7 +231,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                  }}
                  className={`absolute z-30 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] ${status === 'playing' ? 'animate-pulse' : ''}`}
                >
-                 <AnimatedBall />
+                 <AnimatedBall className="!w-8 !h-8 md:!w-12 md:!h-12" />
                </motion.div>
              )}
            </AnimatePresence>
