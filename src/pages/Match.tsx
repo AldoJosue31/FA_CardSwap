@@ -1,8 +1,10 @@
+// src/pages/Match.tsx
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
 import CoinFlip from '../components/CoinFlip'; 
 import AnimatedBall from '../components/AnimatedBall';
+import GoalNet from '../components/GoalNet';
 import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
@@ -117,7 +119,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       </AnimatePresence>
       {/* ==================================================================== */}
 
-      <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px), radial-gradient(circle at center, #26733a 0%, #143d22 100%)` }}></div>
+      {/* Franjas del césped a 90deg para que sean verticales */}
+      <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `repeating-linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px), radial-gradient(circle at center, #26733a 0%, #143d22 100%)` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-30 mix-blend-multiply" style={{ backgroundImage: `radial-gradient(circle at 20% 30%, #3f2a14 0%, transparent 15%), radial-gradient(circle at 80% 70%, #3f2a14 0%, transparent 20%)`, filter: 'blur(30px)' }}></div>
       <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.7)] pointer-events-none z-0"></div>
@@ -129,26 +132,39 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         >II</button>
       )}
 
-      <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] border-white/20 rounded-lg pointer-events-none flex flex-col items-center z-0 overflow-hidden shadow-[0_0_10px_rgba(255,255,255,0.1)]">
-        <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/20 -translate-y-1/2"></div>
-        <div className="absolute top-1/2 left-1/2 w-28 h-28 md:w-40 md:h-40 border-[2px] border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2 backdrop-blur-[1px]"></div>
-        <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-white/40 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+      {/* =========================================================================
+          AJUSTE: Líneas de la cancha (Remarcadas, más gruesas y uniformes)
+      ========================================================================= */}
+      <div className="absolute inset-x-3 inset-y-4 md:inset-x-8 md:inset-y-6 border-[2px] md:border-[3px] border-white/40 rounded-lg pointer-events-none flex items-center justify-center z-0 overflow-hidden shadow-[0_0_15px_rgba(255,255,255,0.15)]">
+        {/* LÍNEA CENTRAL VERTICAL */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-[2px] md:w-[3px] bg-white/40 -translate-x-1/2 shadow-[0_0_10px_rgba(255,255,255,0.2)]"></div>
+        {/* CÍRCULO CENTRAL */}
+        <div className="absolute left-1/2 top-1/2 w-32 h-32 md:w-48 md:h-48 border-[2px] md:border-[3px] border-white/40 rounded-full -translate-x-1/2 -translate-y-1/2 backdrop-blur-[1px] shadow-[inset_0_0_10px_rgba(255,255,255,0.1),0_0_10px_rgba(255,255,255,0.1)]"></div>
+        {/* PUNTO CENTRAL */}
+        <div className="absolute left-1/2 top-1/2 w-3 h-3 md:w-4 md:h-4 bg-white/70 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-[0_0_10px_rgba(255,255,255,0.3)]"></div>
       </div>
+      {/* ========================================================================= */}
 
-      <div className="match-bot-deck absolute right-6 md:right-16 bottom-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
+      {/* Bot Deck (Mazo Rival) - Esquina Superior Derecha */}
+      <div className="match-bot-deck absolute !right-1 sm:!right-4 md:!right-8 lg:!right-12 !top-[8%] sm:!top-[12%] md:!top-[15%] !bottom-auto w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-red-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black drop-shadow-md">{botDeck?.length || 0}</span>
       </div>
-      <div className="match-player-deck absolute right-6 md:right-16 top-[calc(50%+0.5rem)] w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
+
+      {/* Player Deck (Mazo Jugador) - Esquina Inferior Derecha */}
+      <div className="match-player-deck absolute !right-1 sm:!right-4 md:!right-8 lg:!right-12 !bottom-[18%] sm:!bottom-[22%] md:!bottom-[25%] !top-auto w-16 h-24 md:w-20 md:h-28 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl flex flex-col items-center justify-center text-cyan-500/60 font-bold shadow-2xl z-20">
         <span className="text-[8px] md:text-[10px] tracking-widest font-medium opacity-70">MAZO</span>
         <span className="text-xl md:text-3xl font-black text-white drop-shadow-md">{playerDeck?.length || 0}</span>
       </div>
 
-      <div className="match-discard-pile match-bot-discard absolute left-6 md:left-16 bottom-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+      {/* Bot Discard (Usadas Rival) - Esquina Superior Izquierda */}
+      <div className="match-discard-pile match-bot-discard absolute !left-1 sm:!left-4 md:!left-8 lg:!left-12 !top-[8%] sm:!top-[12%] md:!top-[15%] !bottom-auto w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-500 absolute -top-5">USADAS</span>
         {botDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
-      <div className="match-discard-pile match-player-discard absolute left-6 md:left-16 top-[calc(50%+0.5rem)] w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
+
+      {/* Player Discard (Usadas Jugador) - Esquina Inferior Izquierda */}
+      <div className="match-discard-pile match-player-discard absolute !left-1 sm:!left-4 md:!left-8 lg:!left-12 !bottom-[18%] sm:!bottom-[22%] md:!bottom-[25%] !top-auto w-20 h-28 md:w-24 md:h-32 bg-black/10 border border-white/5 border-dashed rounded-xl flex items-center justify-center shadow-inner z-10">
         <span className="text-[8px] tracking-widest font-medium text-slate-400 absolute -bottom-5">USADAS</span>
         {playerDiscard.map((card: CardData) => <div key={card.id} className="absolute inset-0 flex items-center justify-center"><Card card={card} disabled isDiscardCard className="match-card" /></div>)}
       </div>
@@ -179,7 +195,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         
         {/* Contenedor Carta Jugador */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
+          {/* PORTERÍA DEL JUGADOR */}
+          <GoalNet isPlayer={true} />
+
+          {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
           {playerBoardCard && (
             <>
               <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card" />
@@ -239,7 +258,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
         {/* Contenedor Carta Rival */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
-          {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]"></div>}
+          {/* PORTERÍA DEL RIVAL */}
+          <GoalNet isPlayer={false} />
+
+          {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
           {botBoardCard && (
             <>
               <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card" />
