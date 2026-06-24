@@ -19,15 +19,15 @@ export const MOCK_DECK: CardData[] = [
   { id: 'c23', name: 'H. Huracán', pos: 'DEL', atk: 93, def: 45, nationality: 'ENG', image: 'Huracan.png' },    // Real: Harry Kane
   { id: 'c24', name: 'T. Cortado', pos: 'POR', atk: 15, def: 94, nationality: 'BEL', image: 'Cortado.png' },    // Real: Thibaut Courtois
   { id: 'c25', name: 'F. De Pong', pos: 'MED', atk: 84, def: 80, nationality: 'NED', image: 'DePong.png' },
-  { id: 'c25', name: 'G. Yariel', pos: 'MED', atk: -99, def: -99, nationality: 'MEX', image: 'Pamperzy.png' },      // Real: Frenkie de Jong
+  { id: 'c26', name: 'G. Yariel', pos: 'MED', atk: -99, def: -99, nationality: 'MEX', image: 'Pamperzy.png' },      // Real: Frenkie de Jong
 
   // --- LEYENDAS (Conservadas del mazo original) ---
-  { id: 'c3', name: 'P. Yolo', pos: 'DEF', atk: 35, def: 92, nationality: 'ESP', image: '', isLegend: true },            // Real: Carles Puyol
-  { id: 'c4', name: 'R. Carlitos', pos: 'DEF', atk: 75, def: 86, nationality: 'BRA', image: '', isLegend: true },        // Real: Roberto Carlos
-  { id: 'c5', name: 'N. Ribera', pos: 'DEF', atk: 50, def: 84, nationality: 'ITA', image: '', isLegend: true },          // Real: Gianni Rivera
+  { id: 'c3', name: 'P. Yolo', pos: 'DEF', atk: 35, def: 92, nationality: 'ESP', image: 'Yolo.png', isLegend: true },            // Real: Carles Puyol
+  { id: 'c4', name: 'R. Carlitos', pos: 'DEF', atk: 75, def: 86, nationality: 'BRA', image: 'Carlitos.png', isLegend: true },        // Real: Roberto Carlos
+  { id: 'c5', name: 'N. Ribera', pos: 'DEF', atk: 50, def: 84, nationality: 'ITA', image: 'Ribera.png', isLegend: true },          // Real: Gianni Rivera
   { id: 'c12', name: 'I. Casitas', pos: 'POR', atk: 12, def: 90, nationality: 'ESP', image: 'Casitas.png', isLegend: true },// Real: Iker Casillas
   { id: 'c13', name: 'P. Maldino', pos: 'DEF', atk: 45, def: 95, nationality: 'ITA', image: 'Maldino.png', isLegend: true },// Real: Paolo Maldini
-  { id: 'c14', name: 'F. Beckenburger', pos: 'DEF', atk: 65, def: 94, nationality: 'GER', image: '', isLegend: true },   // Real: Franz Beckenbauer
+  { id: 'c14', name: 'F. Beckenburger', pos: 'DEF', atk: 65, def: 94, nationality: 'GER', image: 'Beckenburger.png', isLegend: true },   // Real: Franz Beckenbauer
   { id: 'c15', name: 'F. Carnivaro', pos: 'DEF', atk: 35, def: 91, nationality: 'ITA', image: 'Carnivaro.png', isLegend: true },// Real: Fabio Cannavaro
   { id: 'c16', name: 'J. Zaneta', pos: 'DEF', atk: 55, def: 88, nationality: 'ARG', image: 'Zaneta.png', isLegend: true },         // Real: Javier Zanetti
 
