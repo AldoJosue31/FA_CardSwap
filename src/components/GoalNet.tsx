@@ -1,5 +1,5 @@
 // src/components/GoalNet.tsx
-import React from 'react';
+
 
 const GoalNet = ({ isPlayer }: { isPlayer: boolean }) => {
   const isLeft = isPlayer;
