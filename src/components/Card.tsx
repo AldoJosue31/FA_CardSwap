@@ -18,62 +18,162 @@ interface CardProps {
   className?: string;
 }
 
+/**
+ * Convierte los códigos FIFA/ISO de tres letras utilizados
+ * en gameData a los códigos compatibles con FlagCDN.
+ */
 const FLAG_MAP: Record<string, string> = {
-  MEX: 'mx', ARG: 'ar', BRA: 'br', ESP: 'es', FRA: 'fr',
-  POR: 'pt', ITA: 'it', GER: 'de', NED: 'nl', ENG: 'gb-eng',
-  URU: 'uy', COL: 'co', SWE: 'se', CHI: 'cl', USA: 'us',
-  POL: 'pl', NOR: 'no', BEL: 'be', CRO: 'hr', MAR: 'hr' // Añadidos Noruega (no) y Bélgica (be)
+  // América
+  MEX: 'mx',
+  ARG: 'ar',
+  BRA: 'br',
+  URU: 'uy',
+  COL: 'co',
+  CHI: 'cl',
+  USA: 'us',
+
+  // Europa
+  ESP: 'es',
+  FRA: 'fr',
+  POR: 'pt',
+  ITA: 'it',
+  GER: 'de',
+  NED: 'nl',
+  ENG: 'gb-eng',
+  POL: 'pl',
+  NOR: 'no',
+  BEL: 'be',
+  CRO: 'hr',
+  SWE: 'se',
+  GEO: 'ge',
+
+  // África
+  MAR: 'ma',
 };
 
-const BUCKET_NAME = "card-assets";
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://TU_PROJECT_ID.supabase.co";
+const BUCKET_NAME = 'card-assets';
 
-const getSupabaseImageUrl = (filename: string) => {
-  const baseUrl = SUPABASE_URL.endsWith('/') ? SUPABASE_URL.slice(0, -1) : SUPABASE_URL;
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  'https://TU_PROJECT_ID.supabase.co';
+
+const getSupabaseImageUrl = (filename: string): string => {
+  const baseUrl = SUPABASE_URL.endsWith('/')
+    ? SUPABASE_URL.slice(0, -1)
+    : SUPABASE_URL;
+
   return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${filename}`;
 };
 
-export default function Card({ card, onClick, disabled, draggable, onDragStart, isBoardCard, isDiscardCard, isGalleryCard, isRevealing, isHidden, isHandCard, highlightStat, className = '' }: CardProps) {
+export default function Card({
+  card,
+  onClick,
+  disabled = false,
+  draggable = false,
+  onDragStart,
+  isBoardCard = false,
+  isDiscardCard = false,
+  isGalleryCard = false,
+  isRevealing = false,
+  isHidden = false,
+  isHandCard = false,
+  highlightStat,
+  className = '',
+}: CardProps) {
   const isBot = card.owner === 'bot';
-  const isLegend = card.isLegend;
+  const isLegend = Boolean(card.isLegend);
 
-  const flagCode = FLAG_MAP[card.nationality] || 'xx';
-  const flagUrl = `https://flagcdn.com/w320/${flagCode}.png`;
+  /**
+   * Normaliza el código por si llega con espacios o minúsculas.
+   * Ejemplo: " geo " se transforma en "GEO".
+   */
+  const nationalityCode = card.nationality?.trim().toUpperCase();
 
-  const getGraveyardRotation = (id: string) => {
+  const flagCode = nationalityCode
+    ? FLAG_MAP[nationalityCode] ?? null
+    : null;
+
+  const flagUrl = flagCode
+    ? `https://flagcdn.com/w320/${flagCode}.png`
+    : null;
+
+  const getGraveyardRotation = (id: string): number => {
     let hash = 0;
+
     for (let i = 0; i < id.length; i++) {
       hash = id.charCodeAt(i) + ((hash << 5) - hash);
     }
+
     return (hash % 30) - 15;
   };
 
-  const isNewDraw = !isBoardCard && !isDiscardCard && !isGalleryCard;
-  const canInteract = !disabled && !isBoardCard && !isDiscardCard;
+  const isNewDraw =
+    !isBoardCard &&
+    !isDiscardCard &&
+    !isGalleryCard;
 
-  const initialDrawProps = isNewDraw && !isHandCard
-    ? { x: 300, y: isBot && !canInteract ? 200 : -200, opacity: 0, scale: 0.5, rotate: 15 }
-    : false;
+  const canInteract =
+    !disabled &&
+    !isBoardCard &&
+    !isDiscardCard;
+
+  const initialDrawProps =
+    isNewDraw && !isHandCard
+      ? {
+          x: 300,
+          y: isBot && !canInteract ? 200 : -200,
+          opacity: 0,
+          scale: 0.5,
+          rotate: 15,
+        }
+      : false;
 
   const animateProps = isBoardCard
     ? isRevealing
-      ? { rotateX: [0, 180, 360], rotateY: [0, 8, -8, 0], z: [0, 120, 0], scale: [1, 1.16, 1], opacity: 1, rotate: 0, filter: "brightness(1.18) saturate(1.2)" }
-      : { rotateX: 0, rotateY: 0, z: 0, scale: 1, opacity: 1, rotate: 0, filter: "brightness(1) saturate(1)" }
+      ? {
+          rotateX: [0, 180, 360],
+          rotateY: [0, 8, -8, 0],
+          z: [0, 120, 0],
+          scale: [1, 1.16, 1],
+          opacity: 1,
+          rotate: 0,
+          filter: 'brightness(1.18) saturate(1.2)',
+        }
+      : {
+          rotateX: 0,
+          rotateY: 0,
+          z: 0,
+          scale: 1,
+          opacity: 1,
+          rotate: 0,
+          filter: 'brightness(1) saturate(1)',
+        }
     : isDiscardCard
-    ? { rotateX: 0, z: 0, scale: 0.5, opacity: 0.9, rotate: getGraveyardRotation(card.id) }
-    : {
-        x: 0,
-        y: disabled && !isHandCard ? 40 : 0,
-        scale: disabled && !isHandCard ? 0.92 : 1,
-        filter: disabled ? "grayscale(1) brightness(0.5)" : "grayscale(0) brightness(1)",
-        opacity: 1,
-        rotateX: 0,
-        rotateY: 0,
-        z: 0,
-        rotate: 0
-      };
+      ? {
+          rotateX: 0,
+          rotateY: 0,
+          z: 0,
+          scale: 0.5,
+          opacity: 0.9,
+          rotate: getGraveyardRotation(card.id),
+        }
+      : {
+          x: 0,
+          y: disabled && !isHandCard ? 40 : 0,
+          scale: disabled && !isHandCard ? 0.92 : 1,
+          filter: disabled
+            ? 'grayscale(1) brightness(0.5)'
+            : 'grayscale(0) brightness(1)',
+          opacity: 1,
+          rotateX: 0,
+          rotateY: 0,
+          z: 0,
+          rotate: 0,
+        };
 
-  const cardLayoutId = isGalleryCard ? undefined : `card-${card.id}`;
+  const cardLayoutId = isGalleryCard
+    ? undefined
+    : `card-${card.id}`;
 
   const bgClass = isLegend
     ? 'bg-gradient-to-br from-slate-700 via-slate-800 to-[#111]'
@@ -98,89 +198,355 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
       layoutId={cardLayoutId}
       draggable={draggable}
       onDragStartCapture={onDragStart}
-      whileHover={canInteract ? { scale: 1.05, y: -20, zIndex: 50 } : {}}
+      whileHover={
+        canInteract
+          ? {
+              scale: 1.05,
+              y: -20,
+              zIndex: 50,
+            }
+          : {}
+      }
       initial={initialDrawProps}
       animate={animateProps}
       transition={{
-        layout: { duration: 0.4, ease: "easeOut" },
-        rotate: { duration: 0.4, ease: "easeOut" },
-        rotateX: { duration: 0.4, ease: "linear" },
-        rotateY: { duration: 0.55, ease: "easeInOut" },
-        z: { duration: 0.4, ease: "easeInOut" },
-        filter: { duration: 0.45, ease: "easeOut" },
-        x: { type: "spring", stiffness: 300, damping: 25 },
-        y: { type: "spring", stiffness: 300, damping: 25 },
-        default: { type: "spring", stiffness: 500, damping: 25 }
+        layout: {
+          duration: 0.4,
+          ease: 'easeOut',
+        },
+        rotate: {
+          duration: 0.4,
+          ease: 'easeOut',
+        },
+        rotateX: {
+          duration: 0.4,
+          ease: 'linear',
+        },
+        rotateY: {
+          duration: 0.55,
+          ease: 'easeInOut',
+        },
+        z: {
+          duration: 0.4,
+          ease: 'easeInOut',
+        },
+        filter: {
+          duration: 0.45,
+          ease: 'easeOut',
+        },
+        x: {
+          type: 'spring',
+          stiffness: 300,
+          damping: 25,
+        },
+        y: {
+          type: 'spring',
+          stiffness: 300,
+          damping: 25,
+        },
+        default: {
+          type: 'spring',
+          stiffness: 500,
+          damping: 25,
+        },
       }}
       style={{
-        transformStyle: "preserve-3d",
-        zIndex: isBoardCard ? 100 : isDiscardCard ? 10 : 1,
-        transform: "translateZ(0)",
-        willChange: "transform, opacity, filter"
+        transformStyle: 'preserve-3d',
+        zIndex: isBoardCard
+          ? 100
+          : isDiscardCard
+            ? 10
+            : 1,
+        transform: 'translateZ(0)',
+        willChange: 'transform, opacity, filter',
       }}
       onClick={!disabled ? onClick : undefined}
-      className={`relative w-28 h-40 md:w-40 md:h-56 rounded-2xl flex flex-col justify-between p-2.5 select-none overflow-hidden
-        ${bgClass} ${borderClass} ${shadowClass}
-        ${disabled ? 'cursor-default pointer-events-none' : 'ring-1 ring-white/10 cursor-pointer'} ${className}`}
+      className={`
+        relative
+        w-28
+        h-40
+        md:w-40
+        md:h-56
+        rounded-2xl
+        flex
+        flex-col
+        justify-between
+        p-2.5
+        select-none
+        overflow-hidden
+        ${bgClass}
+        ${borderClass}
+        ${shadowClass}
+        ${
+          disabled
+            ? 'cursor-default pointer-events-none'
+            : 'ring-1 ring-white/10 cursor-pointer'
+        }
+        ${className}
+      `}
     >
-
-      {/* ANIMACIÓN LEYENDA */}
+      {/* ANIMACIÓN DE CARTA LEYENDA */}
       {isLegend && (
         <div className="absolute inset-0 z-0 pointer-events-none">
           <motion.div
-            className="absolute inset-0 bg-gradient-to-tr from-slate-300/10 via-transparent to-slate-100/20"
-            animate={{ opacity: [0.3, 0.8, 0.3] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            style={{ willChange: 'opacity' }}
+            className="
+              absolute
+              inset-0
+              bg-gradient-to-tr
+              from-slate-300/10
+              via-transparent
+              to-slate-100/20
+            "
+            animate={{
+              opacity: [0.3, 0.8, 0.3],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            style={{
+              willChange: 'opacity',
+            }}
           />
+
           <motion.div
-            className="absolute inset-y-0 w-[150%] bg-gradient-to-r from-transparent via-white/15 to-transparent skew-x-[-35deg]"
-            initial={{ x: '-150%' }}
-            animate={{ x: '150%' }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-            style={{ willChange: 'transform' }}
+            className="
+              absolute
+              inset-y-0
+              w-[150%]
+              bg-gradient-to-r
+              from-transparent
+              via-white/15
+              to-transparent
+              skew-x-[-35deg]
+            "
+            initial={{
+              x: '-150%',
+            }}
+            animate={{
+              x: '150%',
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              repeatDelay: 1,
+            }}
+            style={{
+              willChange: 'transform',
+            }}
           />
         </div>
       )}
 
-      {/* REVERSO DE LA CARTA (Se muestra por encima de todo si isHidden es true) */}
+      {/* REVERSO DE LA CARTA */}
       <AnimatePresence>
         {isHidden && (
           <motion.div
             key="hidden-back"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.1, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="absolute inset-0 z-50 bg-gradient-to-br from-slate-800 via-slate-900 to-[#021812] rounded-2xl flex flex-col items-center justify-center border-2 border-cyan-500/30"
-            style={{ backfaceVisibility: 'hidden' }}
+            initial={{
+              opacity: 0,
+            }}
+            animate={{
+              opacity: 1,
+            }}
+            exit={{
+              opacity: 0,
+              scale: 1.1,
+              filter: 'blur(4px)',
+            }}
+            transition={{
+              duration: 0.3,
+              ease: 'easeOut',
+            }}
+            className="
+              absolute
+              inset-0
+              z-50
+              bg-gradient-to-br
+              from-slate-800
+              via-slate-900
+              to-[#021812]
+              rounded-2xl
+              flex
+              flex-col
+              items-center
+              justify-center
+              border-2
+              border-cyan-500/30
+            "
+            style={{
+              backfaceVisibility: 'hidden',
+            }}
           >
-            <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-20">
-               <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#fff_10px,#fff_20px)] mix-blend-overlay"></div>
+            <div className="
+              absolute
+              inset-0
+              rounded-2xl
+              overflow-hidden
+              pointer-events-none
+              opacity-20
+            ">
+              <div className="
+                absolute
+                inset-0
+                bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#fff_10px,#fff_20px)]
+                mix-blend-overlay
+              " />
             </div>
 
-            <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border border-cyan-500/50 flex items-center justify-center bg-black/60 z-10 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-              <span className="text-3xl md:text-5xl opacity-80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">⚽</span>
+            <div className="
+              w-14
+              h-14
+              md:w-20
+              md:h-20
+              rounded-full
+              border
+              border-cyan-500/50
+              flex
+              items-center
+              justify-center
+              bg-black/60
+              z-10
+              shadow-[0_0_20px_rgba(34,211,238,0.3)]
+            ">
+              <span className="
+                text-3xl
+                md:text-5xl
+                opacity-80
+                drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]
+              ">
+                ⚽
+              </span>
             </div>
-            <span className="mt-3 md:mt-5 text-cyan-400 font-black italic tracking-[0.3em] text-[10px] md:text-sm z-10 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">FUTARENA</span>
+
+            <span className="
+              mt-3
+              md:mt-5
+              text-cyan-400
+              font-black
+              italic
+              tracking-[0.3em]
+              text-[10px]
+              md:text-sm
+              z-10
+              drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]
+            ">
+              FUTARENA
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="absolute top-0 left-0 right-0 h-2/3 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none z-0 rounded-t-2xl"></div>
+      {/* BRILLO SUPERIOR */}
+      <div className="
+        absolute
+        top-0
+        left-0
+        right-0
+        h-2/3
+        bg-gradient-to-b
+        from-white/[0.03]
+        to-transparent
+        pointer-events-none
+        z-0
+        rounded-t-2xl
+      " />
 
-      <div className={`relative z-10 w-full text-center rounded-lg py-1 px-2 flex justify-between items-center backdrop-blur-sm ${isLegend ? 'bg-slate-900/40 border border-slate-400/50' : isBot ? 'bg-red-950/40 border border-red-800/30' : 'bg-slate-900/50 border border-slate-700/50'}`}>
-        <span className="text-white font-bold text-[10px] sm:text-xs truncate max-w-[70%] tracking-wide">{card.name}</span>
-        <span className={`${isLegend ? 'text-slate-300' : isBot ? 'text-red-400' : 'text-cyan-400'} font-black text-[10px]`}>{card.pos}</span>
+      {/* NOMBRE Y POSICIÓN */}
+      <div
+        className={`
+          relative
+          z-10
+          w-full
+          text-center
+          rounded-lg
+          py-1
+          px-2
+          flex
+          justify-between
+          items-center
+          backdrop-blur-sm
+          ${
+            isLegend
+              ? 'bg-slate-900/40 border border-slate-400/50'
+              : isBot
+                ? 'bg-red-950/40 border border-red-800/30'
+                : 'bg-slate-900/50 border border-slate-700/50'
+          }
+        `}
+      >
+        <span className="
+          text-white
+          font-bold
+          text-[10px]
+          sm:text-xs
+          truncate
+          max-w-[70%]
+          tracking-wide
+        ">
+          {card.name}
+        </span>
+
+        <span
+          className={`
+            ${
+              isLegend
+                ? 'text-slate-300'
+                : isBot
+                  ? 'text-red-400'
+                  : 'text-cyan-400'
+            }
+            font-black
+            text-[10px]
+          `}
+        >
+          {card.pos}
+        </span>
       </div>
 
-      <div className="relative z-20 flex-1 my-2.5 w-full flex items-center justify-center">
-        <div className={`absolute inset-0 rounded-lg overflow-hidden ${isLegend ? 'bg-slate-800/50' : isBot ? 'bg-red-900/20' : 'bg-slate-800/30'}`}>
-          {card.nationality && flagCode !== 'xx' && (
+      {/* IMAGEN Y BANDERA */}
+      <div className="
+        relative
+        z-20
+        flex-1
+        my-2.5
+        w-full
+        flex
+        items-center
+        justify-center
+      ">
+        <div
+          className={`
+            absolute
+            inset-0
+            rounded-lg
+            overflow-hidden
+            ${
+              isLegend
+                ? 'bg-slate-800/50'
+                : isBot
+                  ? 'bg-red-900/20'
+                  : 'bg-slate-800/30'
+            }
+          `}
+        >
+          {flagUrl && (
             <div
-              className="absolute inset-0 bg-cover bg-center opacity-35 mix-blend-overlay z-0"
-              style={{ backgroundImage: `url(${flagUrl})` }}
-            ></div>
+              className="
+                absolute
+                inset-0
+                bg-cover
+                bg-center
+                opacity-35
+                mix-blend-overlay
+                z-0
+              "
+              style={{
+                backgroundImage: `url("${flagUrl}")`,
+              }}
+            />
           )}
         </div>
 
@@ -188,31 +554,159 @@ export default function Card({ card, onClick, disabled, draggable, onDragStart, 
           <img
             src={getSupabaseImageUrl(card.image)}
             alt={card.name}
-            loading={isGalleryCard ? "lazy" : "eager"}
-            className="absolute bottom-0 inset-x-0 mx-auto w-[125%] h-[112%] object-contain object-bottom drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)] z-20 pointer-events-none"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
+            loading={isGalleryCard ? 'lazy' : 'eager'}
+            className="
+              absolute
+              bottom-0
+              inset-x-0
+              mx-auto
+              w-[125%]
+              h-[112%]
+              object-contain
+              object-bottom
+              drop-shadow-[0_-3px_12px_rgba(0,0,0,0.5)]
+              z-20
+              pointer-events-none
+            "
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
             }}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-             <span className="text-4xl sm:text-5xl drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">⚽</span>
+          <div className="
+            absolute
+            inset-0
+            flex
+            items-center
+            justify-center
+            z-20
+            pointer-events-none
+          ">
+            <span className="
+              text-4xl
+              sm:text-5xl
+              drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]
+            ">
+              ⚽
+            </span>
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 h-[45%] rounded-b-lg bg-gradient-to-t from-black/90 via-black/40 to-transparent z-30 pointer-events-none"></div>
+        <div className="
+          absolute
+          inset-x-0
+          bottom-0
+          h-[45%]
+          rounded-b-lg
+          bg-gradient-to-t
+          from-black/90
+          via-black/40
+          to-transparent
+          z-30
+          pointer-events-none
+        " />
       </div>
 
-      <div className={`relative z-30 flex justify-between w-full font-black text-sm sm:text-lg p-1.5 rounded-lg backdrop-blur-sm ${isLegend ? 'bg-slate-900/50 border border-slate-400/40' : isBot ? 'bg-red-950/50 border border-red-900/30' : 'bg-slate-900/60 border border-slate-700/40'}`}>
-        <div className={`flex flex-col items-center rounded-md px-1 transition-all ${highlightStat === 'atk' ? 'bg-red-400/20 ring-1 ring-red-300/70' : ''}`}>
-          <span className="text-[8px] text-slate-400 tracking-widest font-medium">ATK</span>
-          <span className={`${isLegend ? 'text-slate-100' : 'text-red-400'} drop-shadow-[0_0_5px_rgba(248,113,113,0.4)]`}>{card.atk}</span>
+      {/* ESTADÍSTICAS */}
+      <div
+        className={`
+          relative
+          z-30
+          flex
+          justify-between
+          w-full
+          font-black
+          text-sm
+          sm:text-lg
+          p-1.5
+          rounded-lg
+          backdrop-blur-sm
+          ${
+            isLegend
+              ? 'bg-slate-900/50 border border-slate-400/40'
+              : isBot
+                ? 'bg-red-950/50 border border-red-900/30'
+                : 'bg-slate-900/60 border border-slate-700/40'
+          }
+        `}
+      >
+        <div
+          className={`
+            flex
+            flex-col
+            items-center
+            rounded-md
+            px-1
+            transition-all
+            ${
+              highlightStat === 'atk'
+                ? 'bg-red-400/20 ring-1 ring-red-300/70'
+                : ''
+            }
+          `}
+        >
+          <span className="
+            text-[8px]
+            text-slate-400
+            tracking-widest
+            font-medium
+          ">
+            ATK
+          </span>
+
+          <span
+            className={`
+              ${
+                isLegend
+                  ? 'text-slate-100'
+                  : 'text-red-400'
+              }
+              drop-shadow-[0_0_5px_rgba(248,113,113,0.4)]
+            `}
+          >
+            {card.atk}
+          </span>
         </div>
-        <div className={`flex flex-col items-center rounded-md px-1 transition-all ${highlightStat === 'def' ? 'bg-blue-400/20 ring-1 ring-blue-300/70' : ''}`}>
-          <span className="text-[8px] text-slate-400 tracking-widest font-medium">DEF</span>
-          <span className={`${isLegend ? 'text-slate-100' : 'text-blue-400'} drop-shadow-[0_0_5px_rgba(96,165,250,0.4)]`}>{card.def}</span>
+
+        <div
+          className={`
+            flex
+            flex-col
+            items-center
+            rounded-md
+            px-1
+            transition-all
+            ${
+              highlightStat === 'def'
+                ? 'bg-blue-400/20 ring-1 ring-blue-300/70'
+                : ''
+            }
+          `}
+        >
+          <span className="
+            text-[8px]
+            text-slate-400
+            tracking-widest
+            font-medium
+          ">
+            DEF
+          </span>
+
+          <span
+            className={`
+              ${
+                isLegend
+                  ? 'text-slate-100'
+                  : 'text-blue-400'
+              }
+              drop-shadow-[0_0_5px_rgba(96,165,250,0.4)]
+            `}
+          >
+            {card.def}
+          </span>
         </div>
       </div>
     </motion.div>
   );
 }
+
