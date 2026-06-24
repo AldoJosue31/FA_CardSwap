@@ -268,5 +268,214 @@ export const MOCK_DECK: CardData[] = [
     nationality: 'MEX',
     image: 'Golazo.png',
     isLegend: true
-  }
+  },
+   {
+    id: 'c27',
+    name: 'Neymarte',
+    pos: 'DEL',
+    atk: 93,
+    def: 72,
+    nationality: 'BRA',
+    image: 'Neymarte.png'
+  }, // Real: Neymar Jr.
+
+  {
+    id: 'c28',
+    name: 'O. Dembeléctrico',
+    pos: 'DEL',
+    atk: 92,
+    def: 71,
+    nationality: 'FRA',
+    image: 'Dembelectrico.png'
+  }, // Real: Ousmane Dembélé
+
+  {
+    id: 'c29',
+    name: 'K. Kvaratsalsa',
+    pos: 'DEL',
+    atk: 93,
+    def: 76,
+    nationality: 'GEO',
+    image: 'Kvaratsalsa.png'
+  }, // Real: Khvicha Kvaratskhelia
+
+  {
+    id: 'c30',
+    name: 'Vitiño',
+    pos: 'MED',
+    atk: 88,
+    def: 88,
+    nationality: 'POR',
+    image: 'Vitino.png'
+  }, // Real: Vitinha
+
+  {
+    id: 'c31',
+    name: 'R. Rodillo',
+    pos: 'MED',
+    atk: 84,
+    def: 93,
+    nationality: 'ESP',
+    image: 'Rodillo.png'
+  }, // Real: Rodri Hernández
+
+  {
+    id: 'c32',
+    name: 'J. Musicala',
+    pos: 'MED',
+    atk: 90,
+    def: 82,
+    nationality: 'GER',
+    image: 'Musicala.png'
+  }, // Real: Jamal Musiala
+
+  {
+    id: 'c33',
+    name: 'F. Würst',
+    pos: 'MED',
+    atk: 89,
+    def: 84,
+    nationality: 'GER',
+    image: 'Wurst.png'
+  }, // Real: Florian Wirtz
+
+  {
+    id: 'c34',
+    name: 'A. Hákimelo',
+    pos: 'DEF',
+    atk: 84,
+    def: 91,
+    nationality: 'MAR',
+    image: 'Hakimelo.png'
+  }, // Real: Achraf Hakimi
+
+  {
+    id: 'c35',
+    name: 'V. Van Dique',
+    pos: 'DEF',
+    atk: 68,
+    def: 96,
+    nationality: 'NED',
+    image: 'VanDique.png'
+  }, // Real: Virgil van Dijk
+
+  {
+    id: 'c36',
+    name: 'W. Saliva',
+    pos: 'DEF',
+    atk: 65,
+    def: 95,
+    nationality: 'FRA',
+    image: 'Saliva.png'
+  }, // Real: William Saliba
+
+  {
+    id: 'c37',
+    name: 'G. DoñaRumores',
+    pos: 'POR',
+    atk: 52,
+    def: 96,
+    nationality: 'ITA',
+    image: 'DonaRumores.png'
+  }, // Real: Gianluigi Donnarumma
+
+  {
+    id: 'c38',
+    name: 'C. PulpoSic',
+    pos: 'DEL',
+    atk: 87,
+    def: 72,
+    nationality: 'USA',
+    image: 'PulpoSic.png'
+  }, // Real: Christian Pulisic
+
+  {
+    id: 'c39',
+    name: 'F. Valleverde',
+    pos: 'MED',
+    atk: 87,
+    def: 91,
+    nationality: 'URU',
+    image: 'Valleverde.png'
+  }, // Real: Federico Valverde
+
+  {
+    id: 'c40',
+    name: 'J. Arañvarez',
+    pos: 'DEL',
+    atk: 91,
+    def: 76,
+    nationality: 'ARG',
+    image: 'Aranvarez.png'
+  }, // Real: Julián Álvarez
+
+  {
+    id: 'c41',
+    name: 'B. Saca',
+    pos: 'DEL',
+    atk: 89,
+    def: 75,
+    nationality: 'ENG',
+    image: 'Saca.png'
+  }, // Real: Bukayo Saka
+
+
+  // ============================================================
+  // NUEVAS LEYENDAS — MUNDIAL / CHAMPIONS
+  // ============================================================
+
+  {
+    id: 'c42',
+    name: 'G. Bufón',
+    pos: 'POR',
+    atk: 50,
+    def: 98,
+    nationality: 'ITA',
+    image: 'Bufon.png',
+    isLegend: true
+  }, // Real: Gianluigi Buffon
+
+  {
+    id: 'c43',
+    name: 'S. Ramones',
+    pos: 'DEF',
+    atk: 74,
+    def: 96,
+    nationality: 'ESP',
+    image: 'Ramones.png',
+    isLegend: true
+  }, // Real: Sergio Ramos
+
+  {
+    id: 'c44',
+    name: 'A. Siesta',
+    pos: 'MED',
+    atk: 92,
+    def: 84,
+    nationality: 'ESP',
+    image: 'Siesta.png',
+    isLegend: true
+  }, // Real: Andrés Iniesta
+
+  {
+    id: 'c45',
+    name: 'Chavi Meriendas',
+    pos: 'MED',
+    atk: 88,
+    def: 90,
+    nationality: 'ESP',
+    image: 'ChaviMeriendas.png',
+    isLegend: true
+  }, // Real: Xavi Hernández
+
+  {
+    id: 'c46',
+    name: 'R. Nazareno',
+    pos: 'DEL',
+    atk: 97,
+    def: 76,
+    nationality: 'BRA',
+    image: 'Nazareno.png',
+    isLegend: true
+  } // Real: Ronaldo Nazário
 ];
