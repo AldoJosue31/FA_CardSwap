@@ -9,8 +9,9 @@ import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
 
-// AÑADIDO: Importación del efecto de sonido para el gol
+// AÑADIDO: Importación de los efectos de sonido
 import goalSoundFile from '../assets/goal.mp3'; 
+import kickSoundFile from '../assets/kick.mp3'; 
 
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
@@ -145,27 +146,30 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   }
   // =========================================================================================
 
-  // AÑADIDO: EFECTO PARA REPRODUCIR EL SONIDO DE GOL
+  // AÑADIDO: EFECTO PARA REPRODUCIR LOS SONIDOS DE PATADA Y GOL
   useEffect(() => {
-    // Si estamos en la fase de resolución y hubo gol
-    if (status === 'resolving' && isGoal) {
-      // Retrasamos el audio a 200ms exactos, que es el momento en que 
-      // la animación spring cruza la línea visualmente antes de detenerse
-      const timer = setTimeout(() => {
-        const audio = new Audio(goalSoundFile);
-        
-        // SOLO leemos el volumen de efectos de sonido (SFX) independiente del Mute
-        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
-        
-        audio.volume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
-        
-        // Solo reproducimos si el volumen de SFX es mayor a 0
-        if (audio.volume > 0) {
-          audio.play().catch(e => console.log("Audio de gol bloqueado:", e));
-        }
-      }, 200); // TIEMPO REDUCIDO DE 450 A 200ms
+    // Solo actuamos cuando entramos a la fase de resolución (cuando el balón es pateado)
+    if (status === 'resolving') {
+      const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+      const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
 
-      return () => clearTimeout(timer);
+      if (sfxVolume > 0) {
+        // 1. Reproducir sonido de PATADA de inmediato (cuando la carta ataca)
+        const kickAudio = new Audio(kickSoundFile);
+        kickAudio.volume = sfxVolume;
+        kickAudio.play().catch(e => console.log("Audio de patada bloqueado:", e));
+
+        // 2. Si es GOL, reproducir el sonido de la red con el retraso de 200ms
+        if (isGoal) {
+          const timer = setTimeout(() => {
+            const goalAudio = new Audio(goalSoundFile);
+            goalAudio.volume = sfxVolume;
+            goalAudio.play().catch(e => console.log("Audio de gol bloqueado:", e));
+          }, 200); 
+
+          return () => clearTimeout(timer);
+        }
+      }
     }
   }, [status, isGoal]);
 
