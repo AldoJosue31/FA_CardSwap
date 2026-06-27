@@ -9,6 +9,9 @@ import { useGameStore } from '../store/gameStore';
 import { useOnlineMatch, type OnlineSession } from '../store/onlineGameStore';
 import type { CardData } from '../gameData';
 
+// AÑADIDO: Importación del efecto de sonido para el gol
+import goalSoundFile from '../assets/goal.mp3'; 
+
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
 export default function Match({ difficulty, onlineSession, onReturnToMenu, onNextLevel }: { difficulty?: string, onlineSession?: OnlineSession | null, onReturnToMenu?: () => void, onNextLevel?: (diff: string) => void }) {
@@ -21,7 +24,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
   // GARANTÍA DE TURNO LIBERADO
   const activeGame = isOnlineMatch ? onlineGame : { ...localGame, canPlay: localGame.status === 'playing' && localGame.introState === 'none' && localGame.currentTurn === 'player' && !localGame.playerBoardCard };
-
   const { playerHand, playerDeck, playerDiscard, botHand, botDeck, botDiscard, playerBoardCard, botBoardCard, playerScore, botScore, status, message, playCard, hasPossession, introState } = activeGame as any;
   const { initGame, advanceIntro } = localGame;
 
@@ -33,7 +35,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const isHost = isOnlineMatch ? onlineSession?.isHost : true;
   const myRole = isOnlineMatch ? (activeGame as any).role : 'player';
   const opponentRole = isOnlineMatch ? (activeGame as any).opponentRole : 'bot';
-
   const playerUsername = isOnlineMatch && (activeGame as any).playerUsername ? (activeGame as any).playerUsername : 'TÚ';
   const opponentUsername = isOnlineMatch && (activeGame as any).opponentUsername ? (activeGame as any).opponentUsername : 'BOT';
 
@@ -74,9 +75,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
   const playerHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === myRole ? 'atk' : 'def') : undefined;
   const botHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === opponentRole ? 'atk' : 'def') : undefined;
-  
+
   const botCardWasPlayedFirst = hasPossession === opponentRole;
   const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
+
   const ballTurnOffset = isCompactLayout ? 82 : 130;
   const coinFace = hasPossession === myRole ? (isHost ? 'CARA' : 'CRUZ') : (isHost ? 'CRUZ' : 'CARA');
   const coinWinnerLabel = hasPossession === myRole ? playerLabel : rivalLabel;
@@ -86,7 +88,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   // =========================================================================================
   let isGoal = false;
   let goalScorer: string | null = null;
-  
+
   // Calculamos en tiempo real si hay gol al momento de resolver las cartas
   if (status === 'resolving' && playerBoardCard && botBoardCard) {
     // Lectura segura: Busca .atk directo o dentro de .stats
@@ -143,9 +145,32 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   }
   // =========================================================================================
 
+  // AÑADIDO: EFECTO PARA REPRODUCIR EL SONIDO DE GOL
+  useEffect(() => {
+    // Si estamos en la fase de resolución y hubo gol
+    if (status === 'resolving' && isGoal) {
+      // Retrasamos el audio a 200ms exactos, que es el momento en que 
+      // la animación spring cruza la línea visualmente antes de detenerse
+      const timer = setTimeout(() => {
+        const audio = new Audio(goalSoundFile);
+        
+        // SOLO leemos el volumen de efectos de sonido (SFX) independiente del Mute
+        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+        
+        audio.volume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+        
+        // Solo reproducimos si el volumen de SFX es mayor a 0
+        if (audio.volume > 0) {
+          audio.play().catch(e => console.log("Audio de gol bloqueado:", e));
+        }
+      }, 200); // TIEMPO REDUCIDO DE 450 A 200ms
+
+      return () => clearTimeout(timer);
+    }
+  }, [status, isGoal]);
+
   return (
     <div className="match-screen h-[100svh] max-h-[100svh] min-h-0 w-full bg-[#143d22] flex flex-col justify-between font-sans relative overflow-hidden text-white selection:bg-cyan-500/30">
-
       {/* ================= FASE DE INTRO ================= */}
       <AnimatePresence>
         {introState !== 'none' && (
@@ -166,19 +191,18 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                  </motion.div>
               </motion.div>
             )}
-
             {(introState === 'coin_spin' || introState === 'coin_result') && (
-              <CoinFlip 
-                phase={introState} 
-                resultFace={coinFace} 
-                winnerLabel={coinWinnerLabel} 
-              />
+              <CoinFlip
+                 phase={introState}
+                 resultFace={coinFace}
+                 winnerLabel={coinWinnerLabel}
+               />
             )}
           </motion.div>
         )}
       </AnimatePresence>
-      {/* ==================================================================== */}
 
+      {/* ==================================================================== */}
       {/* Franjas del césped a 90deg para que sean verticales */}
       <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `repeating-linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 40px, transparent 40px, transparent 80px), radial-gradient(circle at center, #26733a 0%, #143d22 100%)` }}></div>
       <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.35] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
@@ -239,22 +263,21 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         <div className="flex justify-center gap-1.5 md:gap-3.5 overflow-x-auto px-3 md:px-10 pb-2 md:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {botHand.map((card: CardData) => (
             <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="match-hidden-card w-12 h-[4.5rem] sm:w-14 sm:h-20 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
-              <span className="text-2xl md:text-3xl opacity-20">⚽</span>
+              <span className="text-2xl md:text-3xl opacity-20">🤖</span>
             </motion.div>
           ))}
         </div>
       </div>
 
       <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-2 sm:gap-3 md:gap-16 z-10 perspective-1000 my-1 md:my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
-        
+                 
         {/* =======================================================
             CARTA DEL JUGADOR (CON ANIMACIÓN DE CAÍDA / DUCKING)
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           <GoalNet isPlayer={true} />
-
           {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
-          
+                   
           {playerBoardCard && (
             <>
               <motion.div 
@@ -265,7 +288,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               >
                 <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card w-full h-full" />
               </motion.div>
-
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -289,11 +311,11 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                  initial={{ scale: 0, opacity: 0, x: 0, y: 0, rotate: 0 }}
                  animate={{ scale: ballScale, opacity: 1, x: ballX, y: ballY, rotate: ballRotate }}
                  transition={{ 
-                   type: "spring", 
-                   stiffness: status === 'resolving' ? (isGoal ? 120 : 160) : 180, 
-                   damping: status === 'resolving' ? (isGoal ? 12 : 16) : 18,
+                    type: "spring", 
+                    stiffness: status === 'resolving' ? (isGoal ? 120 : 160) : 180, 
+                    damping: status === 'resolving' ? (isGoal ? 12 : 16) : 18,
                    delay: status === 'playing' ? 0.3 : 0 
-                 }}
+                  }}
                  className={`absolute z-30 drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)] ${status === 'playing' ? 'animate-pulse' : ''}`}
                >
                  <AnimatedBall className="!w-8 !h-8 md:!w-12 md:!h-12" />
@@ -307,9 +329,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center transform-gpu">
           <GoalNet isPlayer={false} />
-
           {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
-          
+                   
           {botBoardCard && (
             <>
               <motion.div 
@@ -320,7 +341,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               >
                 <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card w-full h-full" />
               </motion.div>
-
               <AnimatePresence>
                 {status === 'resolving' && (
                   <motion.div initial={{ scale: 0, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -357,14 +377,13 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
               <button onClick={() => { if (isOnlineMatch) leaveRoom(); onReturnToMenu(); }} className="w-full py-4 bg-white/10 text-white border border-white/20 rounded-xl text-lg font-bold transition-all hover:bg-white/20">SALIR</button>
             )}
           </div>
-
           {isHelpOpen && (
             <motion.div initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 24 }} className="absolute inset-0 bg-black/80 backdrop-blur-xl flex items-center justify-center px-6 z-10">
               <div className="w-full max-w-md rounded-2xl border border-cyan-400/30 bg-slate-950/95 p-6 md:p-8 shadow-[0_0_45px_rgba(34,211,238,0.18)]">
                 <p className="text-xs text-cyan-300 font-bold tracking-[0.35em] uppercase mb-2">MECÁNICA DEL JUEGO</p>
                 <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white mb-5">POSESIÓN Y DUELOS</h2>
                 <div className="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
-                  <p>Al inicio se lanza una moneda. El ganador tira primero y toma la <span className="text-cyan-400 font-bold">Posesión ⚽</span>.</p>
+                  <p>Al inicio se lanza una moneda. El ganador tira primero y toma la <span className="text-cyan-400 font-bold">Posesión</span>.</p>
                   <p>En el duelo, el jugador <span className="font-bold text-white">CON</span> posesión usa su <span className="text-red-400 font-bold">ATK ⚔️</span> para intentar anotar.</p>
                   <p>El jugador <span className="font-bold text-white">SIN</span> posesión debe usar su <span className="text-blue-400 font-bold">DEF 🛡️</span> para intentar robar el balón.</p>
                   <p>Si la Defensa es mayor que el Ataque, ¡Robas el balón para el próximo turno!</p>
@@ -389,7 +408,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 <h1 className={`text-5xl md:text-7xl font-black mb-4 uppercase tracking-tighter text-center ${isWin ? 'text-cyan-400 drop-shadow-[0_0_50px_rgba(34,211,238,0.6)]' : isDraw ? 'text-slate-300' : 'text-red-500 drop-shadow-[0_0_50px_rgba(239,68,68,0.6)]'}`}>
                   {isWin ? `¡VICTORIA POR ${scoreDiff} PUNTOS!` : isDraw ? '¡EMPATE TÁCTICO!' : `DERROTA POR ${scoreDiff} PUNTOS`}
                 </h1>
-
                 <div className="flex items-center gap-6 md:gap-12 mb-10 md:mb-16 bg-black/50 p-6 md:p-8 rounded-full border border-white/10 shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]">
                   <div className="text-5xl md:text-7xl font-black text-cyan-400 tracking-tighter">{playerScore}</div>
                   <div className="text-2xl md:text-3xl text-slate-600 font-light">VS</div>
@@ -397,7 +415,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 </div>
              </>
           )}
-
           <div className="flex flex-col gap-4 w-full max-w-sm px-6">
             {isOnlineMatch && status === 'gameover' && (
               <>
@@ -405,15 +422,12 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 {opponentWantsRematch && !playerWantsRematch && <p className="text-cyan-400 font-bold tracking-widest text-center text-xs uppercase animate-pulse">¡El rival quiere la revancha!</p>}
               </>
             )}
-
             {!isOnlineMatch && isWin && hasNextLevel && onNextLevel && (
               <button onClick={() => onNextLevel(nextDifficulty!)} className="w-full py-4 bg-cyan-500 text-black rounded-xl text-lg font-black transition-all hover:scale-105 shadow-[0_0_30px_rgba(34,211,238,0.4)]">JUGAR NIVEL {nextDifficulty!.toUpperCase()}</button>
             )}
-
             {!isOnlineMatch && status === 'gameover' && (
               <button onClick={() => initGame(difficulty || 'Normal')} className="w-full py-4 bg-white/10 text-white border border-white/20 rounded-xl text-lg font-bold transition-all hover:bg-white/20">REINTENTAR</button>
             )}
-
             {onReturnToMenu && (
               <button onClick={() => { if (isOnlineMatch) leaveRoom(); onReturnToMenu(); }} className="w-full py-4 bg-transparent text-slate-400 rounded-xl text-sm font-bold tracking-widest uppercase transition-all hover:text-white">SALIR AL MENÚ</button>
             )}
