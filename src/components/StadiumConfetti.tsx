@@ -15,11 +15,14 @@ interface Particle {
   isGrounded: boolean;
   groundTimer: number;
   opacity: number;
+  isBurst: boolean;
 }
 
 // Colores separados: Predomina Azul abajo, Rojo arriba
 const USER_COLORS = ['#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#f97316', '#ffffff', '#e2e8f0'];
 const RIVAL_COLORS = ['#ef4444', '#ef4444', '#ef4444', '#ef4444', '#f97316', '#ffffff', '#e2e8f0'];
+const AMBIENT_SPAWN_CHANCE = 0.012;
+const AMBIENT_ALPHA = 0.65;
 
 interface StadiumConfettiProps {
   isGoal: boolean;
@@ -38,6 +41,7 @@ export default function StadiumConfetti({ isGoal, isDefense, activeSide }: Stadi
   const isDefenseRef = useRef(isDefense);
   const activeSideRef = useRef(activeSide);
   const prevEventRef = useRef(false);
+  const effectOpacityRef = useRef(0);
 
   useEffect(() => {
     isGoalRef.current = isGoal;
@@ -54,12 +58,17 @@ export default function StadiumConfetti({ isGoal, isDefense, activeSide }: Stadi
 
     let width = window.innerWidth;
     let height = window.innerHeight;
+    let pixelRatio = window.devicePixelRatio || 1;
 
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+      pixelRatio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     };
     window.addEventListener('resize', resize);
     resize();
@@ -84,15 +93,24 @@ export default function StadiumConfetti({ isGoal, isDefense, activeSide }: Stadi
         rotationSpeed: (Math.random() - 0.5) * 0.3,
         isGrounded: false,
         groundTimer: Math.random() * 300 + 150, // Tiempo anclado al pasto
-        opacity: 1
+        opacity: 1,
+        isBurst
       });
     };
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
+      const hasActiveEvent = isGoalRef.current || isDefenseRef.current;
+      const targetOpacity = hasActiveEvent ? 1 : 0;
+      const opacitySpeed = targetOpacity > effectOpacityRef.current ? 0.16 : 0.055;
+      effectOpacityRef.current += (targetOpacity - effectOpacityRef.current) * opacitySpeed;
+
+      if (effectOpacityRef.current < 0.004) {
+        effectOpacityRef.current = 0;
+      }
 
       // 1. Detección de Evento (Gol o Defensa exitosa)
-      if ((isGoalRef.current || isDefenseRef.current) && !prevEventRef.current) {
+      if (hasActiveEvent && !prevEventRef.current) {
         prevEventRef.current = true;
         const side = activeSideRef.current;
         
@@ -101,13 +119,13 @@ export default function StadiumConfetti({ isGoal, isDefense, activeSide }: Stadi
           const particleCount = isGoalRef.current ? 150 : 50;
           for (let i = 0; i < particleCount; i++) spawnParticle(true, side);
         }
-      } else if (!isGoalRef.current && !isDefenseRef.current) {
+      } else if (!hasActiveEvent) {
         prevEventRef.current = false;
       }
 
       // 2. Caída ambiental normal lenta
-      if (Math.random() < 0.03) spawnParticle(false, 'top');
-      if (Math.random() < 0.03) spawnParticle(false, 'bottom');
+      if (Math.random() < AMBIENT_SPAWN_CHANCE) spawnParticle(false, 'top');
+      if (Math.random() < AMBIENT_SPAWN_CHANCE) spawnParticle(false, 'bottom');
 
       // 3. Físicas y Renderizado
       particlesRef.current.forEach((p) => {
@@ -133,17 +151,25 @@ export default function StadiumConfetti({ isGoal, isDefense, activeSide }: Stadi
           }
         }
 
+        if (p.isBurst && !hasActiveEvent) {
+          p.opacity -= 0.018;
+        }
+
+        p.opacity = Math.max(0, p.opacity);
+        const particleAlpha = p.opacity * (p.isBurst ? effectOpacityRef.current : AMBIENT_ALPHA);
+        if (particleAlpha <= 0.001) return;
+
         // ==========================================
         // OPTIMIZACIÓN CRÍTICA: SOMBRAS FALSAS
         // ==========================================
         ctx.save();
-        ctx.globalAlpha = p.opacity;
+        ctx.globalAlpha = particleAlpha;
         
         ctx.translate(p.x, p.y);
-        
-        const flip = Math.cos(p.rotation);
-        ctx.scale(1, flip);
-        ctx.rotate(p.rotation * 0.5);
+
+        // Evitamos que la partícula se "aplane" hasta casi 0px al girar,
+        // porque eso se percibe como un flick/parpadeo fuerte.
+        ctx.rotate(p.rotation);
 
         // A) Dibujamos la sombra falsa (Un cuadro negro desplazado)
         const shadowOffset = p.isGrounded ? 1 : p.z / 3;
