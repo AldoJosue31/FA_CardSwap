@@ -1,19 +1,17 @@
 // src/components/GoalNet.tsx
 
-
 const GoalNet = ({ isPlayer }: { isPlayer: boolean }) => {
   const isLeft = isPlayer;
   
   return (
     <div
-      className={`absolute top-1/2 -translate-y-1/2 h-[115%] w-20 sm:w-24 md:w-32 pointer-events-none ${
+      className={`absolute top-1/2 -translate-y-1/2 h-[115%] w-20 sm:w-24 md:w-32 pointer-events-none z-40 ${
         isLeft 
           // Si es el jugador (Izquierda), la portería va a la izquierda de la carta
           ? 'right-[calc(100%+0.5rem)] md:right-[calc(100%+1.5rem)]' 
           // Si es el bot (Derecha), la portería va a la derecha de la carta
           : 'left-[calc(100%+0.5rem)] md:left-[calc(100%+1.5rem)]'
       }`}
-      style={{ zIndex: -1 }}
     >
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="drop-shadow-2xl overflow-visible">
         <defs>
