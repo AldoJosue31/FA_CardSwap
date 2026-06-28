@@ -1,3 +1,4 @@
+// src/pages/MainMenu.tsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -70,6 +71,13 @@ export default function MainMenu({
     const saved = localStorage.getItem('futarena_volume');
     return saved !== null ? parseFloat(saved) : 0.5;
   });
+
+  // NUEVO: Estado para el volumen de los Efectos de Sonido (SFX)
+  const [sfxVolume, setSfxVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('futarena_sfx_volume');
+    return saved !== null ? parseFloat(saved) : 0.8;
+  });
+
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     const saved = localStorage.getItem('futarena_muted');
     return saved === 'true';
@@ -84,6 +92,11 @@ export default function MainMenu({
     globalVolumeRef.current = globalVolume;
     localStorage.setItem('futarena_volume', globalVolume.toString());
   }, [globalVolume]);
+
+  // NUEVO: Guardar cambios de SFX en el navegador
+  useEffect(() => {
+    localStorage.setItem('futarena_sfx_volume', sfxVolume.toString());
+  }, [sfxVolume]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -133,6 +146,11 @@ export default function MainMenu({
       if (fadeIntervalRef.current) window.clearInterval(fadeIntervalRef.current);
       audioRef.current.volume = isMutedRef.current ? 0 : newVol;
     }
+  };
+
+  // NUEVO: Controlador para el slider de efectos
+  const handleSfxVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSfxVolume(parseFloat(e.target.value));
   };
 
   const handleMuteToggle = () => {
@@ -439,26 +457,46 @@ export default function MainMenu({
               </motion.div>
             )}
 
-            {/* SECCIÓN NUEVA: OPCIONES */}
+            {/* SECCIÓN ACTUALIZADA: OPCIONES (Con los dos Sliders) */}
             {screen === 'options' && (
               <motion.div className="flex flex-col gap-3">
                 <div className="bg-black/40 border border-white/10 rounded-xl p-6 backdrop-blur-md shadow-[0_4px_15px_rgba(0,0,0,0.3)] text-left mb-2">
                   <h3 className="text-lg font-black text-cyan-400 mb-4 tracking-widest uppercase">Ajustes de Sonido</h3>
                   
-                  <div className="flex flex-col gap-3">
-                    <div className="flex justify-between items-center text-sm font-bold text-white uppercase tracking-widest">
-                      <span>Música de Fondo</span>
-                      <span className="text-cyan-400">{Math.round(globalVolume * 100)}%</span>
+                  <div className="flex flex-col gap-5">
+                    {/* SLIDER: MÚSICA DE FONDO */}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-sm font-bold text-white uppercase tracking-widest">
+                        <span>Música de Fondo</span>
+                        <span className="text-cyan-400">{Math.round(globalVolume * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={globalVolume}
+                        onChange={handleVolumeChange}
+                        className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                      />
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="1" 
-                      step="0.01" 
-                      value={globalVolume}
-                      onChange={handleVolumeChange}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
-                    />
+
+                    {/* SLIDER: EFECTOS DE SONIDO */}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-sm font-bold text-white uppercase tracking-widest">
+                        <span>Efectos de Sonido</span>
+                        <span className="text-cyan-400">{Math.round(sfxVolume * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.01" 
+                        value={sfxVolume}
+                        onChange={handleSfxVolumeChange}
+                        className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                      />
+                    </div>
                   </div>
                 </div>
 
