@@ -17,7 +17,7 @@ interface Particle {
   opacity: number;
 }
 
-// Colores separados: Predomina Azul (con acentos institucionales) abajo, Rojo arriba
+// Colores separados: Predomina Azul abajo, Rojo arriba
 const USER_COLORS = ['#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#f97316', '#ffffff', '#e2e8f0'];
 const RIVAL_COLORS = ['#ef4444', '#ef4444', '#ef4444', '#ef4444', '#f97316', '#ffffff', '#e2e8f0'];
 
@@ -30,7 +30,8 @@ interface StadiumConfettiProps {
 export default function StadiumConfetti({ isGoal, isDefense, activeSide }: StadiumConfettiProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const animationRef = useRef<number>();
+  // CORRECCIÓN AQUÍ: Se le asigna un valor inicial (0) para evitar el error de TypeScript
+  const animationRef = useRef<number>(0);
   
   // Refs para evitar re-renderizados del DOM en el loop de requestAnimationFrame
   const isGoalRef = useRef(isGoal);
