@@ -218,62 +218,69 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       }
     }
     
+    // Siempre mantenemos sincronizado el tamaño de la mano para que no haya falsos positivos
     prevHandSizeRef.current = playerHand?.length || 0;
   }, [playerHand, hasDealtInitialCards, introState]);
 
   // =========================================================================================
-  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (JUGADOR)
+  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL JUGADOR
   // =========================================================================================
-  const prevPlayerBoardCardRef = useRef<string | null>(playerBoardCard ? playerBoardCard.id : null);
+  const lastPlayerCardId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si la carta cambió de ID respecto a la anterior que estaba en la mesa
-    if (playerBoardCard && playerBoardCard.id !== prevPlayerBoardCardRef.current) {
-      prevPlayerBoardCardRef.current = playerBoardCard.id; // Bloqueo de ID para que no suene doble jamás
-      
-      // Solo reproducimos si la intro ya acabó, evitando sonidos fantasma durante el reparto
-      if (hasDealtInitialCards && introState === 'none') {
-        setTimeout(() => {
-          const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
-          const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
-          if (sfxVolume > 0) {
-            const stepAudio = new Audio(stepSoundFile);
-            stepAudio.volume = sfxVolume;
-            stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
-          }
-        }, 120); 
-      }
-    } else if (!playerBoardCard) {
-      // Se limpió la mesa, reiniciamos memoria
-      prevPlayerBoardCardRef.current = null;
+    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
+    if (!playerBoardCard) {
+      lastPlayerCardId.current = null;
+      return;
     }
-  }, [playerBoardCard?.id, hasDealtInitialCards, introState]);
+
+    // Solo si el juego está activo y es una carta nueva que acabamos de lanzar
+    if (introState === 'none' && hasDealtInitialCards && playerBoardCard.id !== lastPlayerCardId.current) {
+      lastPlayerCardId.current = playerBoardCard.id; // Bloqueamos la ID para que jamás suene 2 veces
+      
+      const timer = setTimeout(() => {
+        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+        if (sfxVolume > 0) {
+          const stepAudio = new Audio(stepSoundFile);
+          stepAudio.volume = sfxVolume;
+          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
+        }
+      }, 300); // 300ms es el tiempo exacto que tarda en volar y aterrizar en el centro
+      
+      return () => clearTimeout(timer);
+    }
+  }, [playerBoardCard, introState, hasDealtInitialCards]);
 
   // =========================================================================================
-  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (RIVAL)
+  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL RIVAL
   // =========================================================================================
-  const prevBotBoardCardRef = useRef<string | null>(botBoardCard ? botBoardCard.id : null);
+  const lastBotCardId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si la carta del rival cambió de ID
-    if (botBoardCard && botBoardCard.id !== prevBotBoardCardRef.current) {
-      prevBotBoardCardRef.current = botBoardCard.id; 
-      
-      if (hasDealtInitialCards && introState === 'none') {
-        setTimeout(() => {
-          const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
-          const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
-          if (sfxVolume > 0) {
-            const stepAudio = new Audio(stepSoundFile);
-            stepAudio.volume = sfxVolume;
-            stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
-          }
-        }, 120); 
-      }
-    } else if (!botBoardCard) {
-      prevBotBoardCardRef.current = null;
+    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
+    if (!botBoardCard) {
+      lastBotCardId.current = null;
+      return;
     }
-  }, [botBoardCard?.id, hasDealtInitialCards, introState]);
+
+    // Solo si el juego está activo y el bot lanzó una nueva carta
+    if (introState === 'none' && hasDealtInitialCards && botBoardCard.id !== lastBotCardId.current) {
+      lastBotCardId.current = botBoardCard.id; 
+      
+      const timer = setTimeout(() => {
+        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+        if (sfxVolume > 0) {
+          const stepAudio = new Audio(stepSoundFile);
+          stepAudio.volume = sfxVolume;
+          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
+        }
+      }, 300); // 300ms garantiza que suene al impactar y no al inicio del turno
+      
+      return () => clearTimeout(timer);
+    }
+  }, [botBoardCard, introState, hasDealtInitialCards]);
 
   // =========================================================================================
   // EFECTO PARA REPRODUCIR LOS SONIDOS DE PATADA Y GOL
