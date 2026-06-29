@@ -37,6 +37,16 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const { playerHand, playerDeck, playerDiscard, botHand, botDeck, botDiscard, playerBoardCard, botBoardCard, playerScore, botScore, status, message, playCard, hasPossession, introState } = activeGame as any;
   const { initGame, advanceIntro } = localGame;
 
+  // =========================================================================================
+  // INTERCEPCIÓN VISUAL: Retener cartas en la mano si el Bot (o jugador) tira antes de terminar de repartir
+  // =========================================================================================
+  // Si el bot tira su carta muy rápido, la forzamos a quedarse visualmente en su mano hasta que acabe la intro
+  const displayBotHand = (!hasDealtInitialCards && botBoardCard) ? [...botHand, botBoardCard] : botHand;
+  const displayBotBoardCard = hasDealtInitialCards ? botBoardCard : null;
+
+  const displayPlayerHand = (!hasDealtInitialCards && playerBoardCard) ? [...playerHand, playerBoardCard] : playerHand;
+  const displayPlayerBoardCard = hasDealtInitialCards ? playerBoardCard : null;
+
   const playerWantsRematch = (activeGame as any).playerWantsRematch || false;
   const opponentWantsRematch = (activeGame as any).opponentWantsRematch || false;
   const requestRematch = (activeGame as any).requestRematch || (() => {});
@@ -87,8 +97,9 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const rivalLabel = opponentUsername;
   const statusMessage = isOnlineMatch && onlineSession ? `${onlineSession.roomCode} - ${message}` : message;
 
-  const playerHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === myRole ? 'atk' : 'def') : undefined;
-  const botHighlight: 'atk' | 'def' | undefined = (playerBoardCard && botBoardCard && status === 'resolving') ? (hasPossession === opponentRole ? 'atk' : 'def') : undefined;
+  // Utilizamos el "display" board card para la sincronización visual de las estadísticas
+  const playerHighlight: 'atk' | 'def' | undefined = (displayPlayerBoardCard && displayBotBoardCard && status === 'resolving') ? (hasPossession === myRole ? 'atk' : 'def') : undefined;
+  const botHighlight: 'atk' | 'def' | undefined = (displayPlayerBoardCard && displayBotBoardCard && status === 'resolving') ? (hasPossession === opponentRole ? 'atk' : 'def') : undefined;
 
   const botCardWasPlayedFirst = hasPossession === opponentRole;
   const shouldHideBotBoardCard = !botCardWasPlayedFirst && status === 'revealing';
@@ -105,11 +116,11 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   let goalScorer: string | null = null;
   let activeSide: 'top' | 'bottom' | null = null; 
 
-  if (status === 'resolving' && playerBoardCard && botBoardCard) {
-    const pAtk = playerBoardCard.atk !== undefined ? playerBoardCard.atk : (playerBoardCard.stats?.atk || 0);
-    const pDef = playerBoardCard.def !== undefined ? playerBoardCard.def : (playerBoardCard.stats?.def || 0);
-    const bAtk = botBoardCard.atk !== undefined ? botBoardCard.atk : (botBoardCard.stats?.atk || 0);
-    const bDef = botBoardCard.def !== undefined ? botBoardCard.def : (botBoardCard.stats?.def || 0);
+  if (status === 'resolving' && displayPlayerBoardCard && displayBotBoardCard) {
+    const pAtk = displayPlayerBoardCard.atk !== undefined ? displayPlayerBoardCard.atk : (displayPlayerBoardCard.stats?.atk || 0);
+    const pDef = displayPlayerBoardCard.def !== undefined ? displayPlayerBoardCard.def : (displayPlayerBoardCard.stats?.def || 0);
+    const bAtk = displayBotBoardCard.atk !== undefined ? displayBotBoardCard.atk : (displayBotBoardCard.stats?.atk || 0);
+    const bDef = displayBotBoardCard.def !== undefined ? displayBotBoardCard.def : (displayBotBoardCard.stats?.def || 0);
 
     if (hasPossession === myRole) {
       if (pAtk > bDef) {
@@ -218,69 +229,72 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       }
     }
     
-    // Siempre mantenemos sincronizado el tamaño de la mano para que no haya falsos positivos
     prevHandSizeRef.current = playerHand?.length || 0;
   }, [playerHand, hasDealtInitialCards, introState]);
 
   // =========================================================================================
-  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL JUGADOR
+  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (JUGADOR)
   // =========================================================================================
-  const lastPlayerCardId = useRef<string | null>(null);
+  const prevPlayerBoardCardRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
-    if (!playerBoardCard) {
-      lastPlayerCardId.current = null;
-      return;
-    }
+    let timer: NodeJS.Timeout;
 
-    // Solo si el juego está activo y es una carta nueva que acabamos de lanzar
-    if (introState === 'none' && hasDealtInitialCards && playerBoardCard.id !== lastPlayerCardId.current) {
-      lastPlayerCardId.current = playerBoardCard.id; // Bloqueamos la ID para que jamás suene 2 veces
+    // Solo verificamos la carta interceptada visualmente (displayPlayerBoardCard)
+    // Esto garantiza que es físicamente imposible que suene antes de que acabe la animación
+    if (displayPlayerBoardCard && displayPlayerBoardCard.id !== prevPlayerBoardCardRef.current) {
+      prevPlayerBoardCardRef.current = displayPlayerBoardCard.id; // Bloqueo anti duplicados
       
-      const timer = setTimeout(() => {
-        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
-        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
-        if (sfxVolume > 0) {
+      const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+      const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+
+      if (sfxVolume > 0) {
+        timer = setTimeout(() => {
           const stepAudio = new Audio(stepSoundFile);
           stepAudio.volume = sfxVolume;
-          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
-        }
-      }, 300); // 300ms es el tiempo exacto que tarda en volar y aterrizar en el centro
-      
-      return () => clearTimeout(timer);
+          stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
+        }, 120); // Empata milimétricamente con la caída visual del resorte de framer-motion
+      }
+    } else if (!displayPlayerBoardCard) {
+      // Mesa limpia al cambiar el turno, reseteamos para el próximo
+      prevPlayerBoardCardRef.current = null;
     }
-  }, [playerBoardCard, introState, hasDealtInitialCards]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [displayPlayerBoardCard]);
 
   // =========================================================================================
-  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL RIVAL
+  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (RIVAL)
   // =========================================================================================
-  const lastBotCardId = useRef<string | null>(null);
+  const prevBotBoardCardRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
-    if (!botBoardCard) {
-      lastBotCardId.current = null;
-      return;
-    }
+    let timer: NodeJS.Timeout;
 
-    // Solo si el juego está activo y el bot lanzó una nueva carta
-    if (introState === 'none' && hasDealtInitialCards && botBoardCard.id !== lastBotCardId.current) {
-      lastBotCardId.current = botBoardCard.id; 
+    // Utilizamos displayBotBoardCard, por lo que si el bot tiró rápido, el audio "espera" obedientemente
+    if (displayBotBoardCard && displayBotBoardCard.id !== prevBotBoardCardRef.current) {
+      prevBotBoardCardRef.current = displayBotBoardCard.id; 
       
-      const timer = setTimeout(() => {
-        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
-        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
-        if (sfxVolume > 0) {
+      const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+      const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+
+      if (sfxVolume > 0) {
+        timer = setTimeout(() => {
           const stepAudio = new Audio(stepSoundFile);
           stepAudio.volume = sfxVolume;
-          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
-        }
-      }, 300); // 300ms garantiza que suene al impactar y no al inicio del turno
-      
-      return () => clearTimeout(timer);
+          stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
+        }, 120); 
+      }
+    } else if (!displayBotBoardCard) {
+      prevBotBoardCardRef.current = null;
     }
-  }, [botBoardCard, introState, hasDealtInitialCards]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [displayBotBoardCard]);
 
   // =========================================================================================
   // EFECTO PARA REPRODUCIR LOS SONIDOS DE PATADA Y GOL
@@ -407,7 +421,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <div className="flex justify-center items-start mt-1 md:mt-4 z-20 opacity-90 origin-top shrink-0">
         <div className="flex justify-center gap-1.5 md:gap-3.5 overflow-x-auto px-3 md:px-10 pb-2 md:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {botHand.map((card: CardData, index: number) => (
+          {displayBotHand.map((card: CardData, index: number) => (
             <motion.div 
               key={card.id} 
               layoutId={`card-${card.id}`} 
@@ -434,9 +448,9 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center">
           <GoalNet isPlayer={true} />
-          {!playerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
+          {!displayPlayerBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-cyan-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
                    
-          {playerBoardCard && (
+          {displayPlayerBoardCard && (
             <>
               <motion.div 
                 className="absolute inset-0 z-10 flex items-center justify-center"
@@ -444,7 +458,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 transition={{ type: "spring", stiffness: 180, damping: 20 }}
                 style={{ transformOrigin: 'bottom' }}
               >
-                <Card card={playerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card w-full h-full" />
+                <Card card={displayPlayerBoardCard} disabled isBoardCard highlightStat={playerHighlight} className="match-card w-full h-full" />
               </motion.div>
               <AnimatePresence>
                 {status === 'resolving' && (
@@ -487,9 +501,9 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center">
           <GoalNet isPlayer={false} />
-          {!botBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
+          {!displayBotBoardCard && <div className="match-board-placeholder absolute inset-0 rounded-2xl md:rounded-3xl border border-red-500/30 bg-black/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] z-10"></div>}
                    
-          {botBoardCard && (
+          {displayBotBoardCard && (
             <>
               <motion.div 
                 className="absolute inset-0 z-10 flex items-center justify-center"
@@ -497,7 +511,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 transition={{ type: "spring", stiffness: 180, damping: 20 }}
                 style={{ transformOrigin: 'bottom' }}
               >
-                <Card card={botBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card w-full h-full" />
+                <Card card={displayBotBoardCard} disabled isBoardCard isHidden={shouldHideBotBoardCard} highlightStat={botHighlight} className="match-card w-full h-full" />
               </motion.div>
               <AnimatePresence>
                 {status === 'resolving' && (
@@ -515,7 +529,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <div className="match-player-hand flex justify-center items-end pb-4 md:pb-6 z-20 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {playerHand.map((card: CardData, index: number) => (
+          {displayPlayerHand.map((card: CardData, index: number) => (
             <motion.div 
               key={card.id} 
               className="match-hand-slot"
@@ -528,7 +542,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 delay: introState === 'none' && !hasDealtInitialCards ? index * 0.6 : 0 
               }}
             >
-              {/* Bloqueo adicional para evitar clicks accidentales mientras se reparten */}
               <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || !hasDealtInitialCards || isPaused} isHandCard className="match-card" />
             </motion.div>
           ))}
