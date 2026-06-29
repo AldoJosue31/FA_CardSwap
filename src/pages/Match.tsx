@@ -1,5 +1,5 @@
 // src/pages/Match.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
 import CoinFlip from '../components/CoinFlip'; 
@@ -13,6 +13,8 @@ import type { CardData } from '../gameData';
 // Importación de los efectos de sonido
 import goalSoundFile from '../assets/goal.mp3'; 
 import kickSoundFile from '../assets/kick.mp3'; 
+import cardSoundFile from '../assets/card.m4a'; // Sonido de repartir cartas
+import stepSoundFile from '../assets/step.mp3'; // Sonido al colocar carta en la cancha
 
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
@@ -21,6 +23,12 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const onlineGame = useOnlineMatch(onlineSession);
   const [isPaused, setIsPaused] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  
+  // Estado para controlar la animación escalonada de las cartas iniciales
+  const [hasDealtInitialCards, setHasDealtInitialCards] = useState(false);
+  // Candado para asegurar que el audio se reproduzca estrictamente una vez
+  const audioPlayedRef = useRef(false);
+  
   const isOnlineMatch = Boolean(onlineSession);
   const isCompactLayout = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
@@ -48,6 +56,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
   useEffect(() => {
     if (!isOnlineMatch && introState === 'vs') {
+      // Reiniciamos los candados al inicio visual de una nueva partida
+      setHasDealtInitialCards(false);
+      audioPlayedRef.current = false;
+      
       const timer = setTimeout(() => advanceIntro(), 3500);
       return () => clearTimeout(timer);
     }
@@ -148,7 +160,131 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
     }
   }
 
+  // =========================================================================================
+  // EFECTO PARA REPRODUCIR SONIDO DE CARTAS REPARTIDAS AL INICIO
+  // =========================================================================================
+  const prevIntroStateRef = useRef(introState);
+
+  useEffect(() => {
+    if (prevIntroStateRef.current !== 'none' && introState === 'none' && !hasDealtInitialCards && !audioPlayedRef.current) {
+      audioPlayedRef.current = true; 
+      
+      const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+      const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+      
+      const timeouts: NodeJS.Timeout[] = [];
+
+      if (sfxVolume > 0) {
+        for (let i = 0; i < 4; i++) {
+          const offsetDelay = Math.max(0, (i * 600) - 60); 
+          const t = setTimeout(() => {
+            const cardAudio = new Audio(cardSoundFile);
+            cardAudio.volume = sfxVolume;
+            cardAudio.play().catch(e => console.log("Audio de cartas bloqueado:", e));
+          }, offsetDelay); 
+          timeouts.push(t);
+        }
+      }
+
+      const finalTimer = setTimeout(() => {
+        setHasDealtInitialCards(true);
+      }, 2400);
+      timeouts.push(finalTimer);
+
+      prevIntroStateRef.current = introState;
+
+      return () => {
+        timeouts.forEach(clearTimeout);
+      };
+    }
+
+    prevIntroStateRef.current = introState;
+  }, [introState, hasDealtInitialCards]);
+
+  // =========================================================================================
+  // EFECTO PARA REPRODUCIR SONIDO AL ROBAR UNA CARTA NUEVA DURANTE LA PARTIDA
+  // =========================================================================================
+  const prevHandSizeRef = useRef(playerHand?.length || 0);
+
+  useEffect(() => {
+    if (introState === 'none' && hasDealtInitialCards && playerHand && playerHand.length > prevHandSizeRef.current) {
+      const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+      const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+
+      if (sfxVolume > 0) {
+        const cardAudio = new Audio(cardSoundFile);
+        cardAudio.volume = sfxVolume;
+        cardAudio.play().catch(e => console.log("Audio de nueva carta bloqueado:", e));
+      }
+    }
+    
+    // Siempre mantenemos sincronizado el tamaño de la mano para que no haya falsos positivos
+    prevHandSizeRef.current = playerHand?.length || 0;
+  }, [playerHand, hasDealtInitialCards, introState]);
+
+  // =========================================================================================
+  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL JUGADOR
+  // =========================================================================================
+  const lastPlayerCardId = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
+    if (!playerBoardCard) {
+      lastPlayerCardId.current = null;
+      return;
+    }
+
+    // Solo si el juego está activo y es una carta nueva que acabamos de lanzar
+    if (introState === 'none' && hasDealtInitialCards && playerBoardCard.id !== lastPlayerCardId.current) {
+      lastPlayerCardId.current = playerBoardCard.id; // Bloqueamos la ID para que jamás suene 2 veces
+      
+      const timer = setTimeout(() => {
+        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+        if (sfxVolume > 0) {
+          const stepAudio = new Audio(stepSoundFile);
+          stepAudio.volume = sfxVolume;
+          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
+        }
+      }, 300); // 300ms es el tiempo exacto que tarda en volar y aterrizar en el centro
+      
+      return () => clearTimeout(timer);
+    }
+  }, [playerBoardCard, introState, hasDealtInitialCards]);
+
+  // =========================================================================================
+  // NUEVO BLOQUE: SONIDO EXACTO DE ATERRIZAJE PARA LA CARTA DEL RIVAL
+  // =========================================================================================
+  const lastBotCardId = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Si la mesa se limpió, reseteamos la memoria de la carta y NO reproducimos nada
+    if (!botBoardCard) {
+      lastBotCardId.current = null;
+      return;
+    }
+
+    // Solo si el juego está activo y el bot lanzó una nueva carta
+    if (introState === 'none' && hasDealtInitialCards && botBoardCard.id !== lastBotCardId.current) {
+      lastBotCardId.current = botBoardCard.id; 
+      
+      const timer = setTimeout(() => {
+        const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+        const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+        if (sfxVolume > 0) {
+          const stepAudio = new Audio(stepSoundFile);
+          stepAudio.volume = sfxVolume;
+          stepAudio.play().catch(e => console.log("Audio de aterrizaje bloqueado:", e));
+        }
+      }, 300); // 300ms garantiza que suene al impactar y no al inicio del turno
+      
+      return () => clearTimeout(timer);
+    }
+  }, [botBoardCard, introState, hasDealtInitialCards]);
+
+  // =========================================================================================
   // EFECTO PARA REPRODUCIR LOS SONIDOS DE PATADA Y GOL
+  // =========================================================================================
   useEffect(() => {
     if (status === 'resolving') {
       const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
@@ -271,8 +407,20 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <div className="flex justify-center items-start mt-1 md:mt-4 z-20 opacity-90 origin-top shrink-0">
         <div className="flex justify-center gap-1.5 md:gap-3.5 overflow-x-auto px-3 md:px-10 pb-2 md:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {botHand.map((card: CardData) => (
-            <motion.div key={card.id} layoutId={`card-${card.id}`} initial={{ x: 300, y: 200, scale: 0.5, opacity: 0 }} animate={{ x: 0, y: 0, scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="match-hidden-card w-12 h-[4.5rem] sm:w-14 sm:h-20 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+          {botHand.map((card: CardData, index: number) => (
+            <motion.div 
+              key={card.id} 
+              layoutId={`card-${card.id}`} 
+              initial={{ x: 150, y: -150, scale: 0.2, opacity: 0 }} 
+              animate={{ x: 0, y: 0, scale: 1, opacity: introState === 'none' ? 1 : 0 }} 
+              transition={{ 
+                type: "spring", 
+                stiffness: 280, 
+                damping: 25, 
+                delay: introState === 'none' && !hasDealtInitialCards ? index * 0.6 : 0 
+              }} 
+              className="match-hidden-card w-12 h-[4.5rem] sm:w-14 sm:h-20 md:w-20 md:h-28 bg-black/80 border border-white/10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg relative overflow-hidden group"
+            >
               <span className="text-2xl md:text-3xl opacity-20">🤖</span>
             </motion.div>
           ))}
@@ -282,7 +430,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       <motion.div className="flex-1 min-h-0 flex items-center justify-center gap-2 sm:gap-3 md:gap-16 z-20 perspective-1000 my-1 md:my-2" animate={status === 'revealing' ? { scale: [1, 1.05, 0.98, 1.05, 1] } : { scale: 1 }} transition={status === 'revealing' ? { duration: 1, ease: "easeInOut" } : { duration: 0.3 }}>
                  
         {/* =======================================================
-            CARTA DEL JUGADOR (ELIMINADO EL TRANSFORM-GPU AQUÍ)
+            CARTA DEL JUGADOR
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center">
           <GoalNet isPlayer={true} />
@@ -335,7 +483,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
         </div>
 
         {/* =======================================================
-            CARTA DEL RIVAL (ELIMINADO EL TRANSFORM-GPU AQUÍ)
+            CARTA DEL RIVAL
         ======================================================= */}
         <div className="match-board-slot relative w-28 h-40 md:w-40 md:h-56 flex items-center justify-center">
           <GoalNet isPlayer={false} />
@@ -367,10 +515,22 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
 
       <div className="match-player-hand flex justify-center items-end pb-4 md:pb-6 z-20 relative shrink-0 origin-bottom">
         <div className="flex justify-center gap-2 md:gap-5 overflow-x-auto px-4 md:px-10 pt-10 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {playerHand.map((card: CardData) => (
-            <div key={card.id} className="match-hand-slot">
-              <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} isHandCard className="match-card" />
-            </div>
+          {playerHand.map((card: CardData, index: number) => (
+            <motion.div 
+              key={card.id} 
+              className="match-hand-slot"
+              initial={{ x: 150, y: 150, scale: 0.2, opacity: 0 }} 
+              animate={{ x: 0, y: 0, scale: 1, opacity: introState === 'none' ? 1 : 0 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 280, 
+                damping: 25, 
+                delay: introState === 'none' && !hasDealtInitialCards ? index * 0.6 : 0 
+              }}
+            >
+              {/* Bloqueo adicional para evitar clicks accidentales mientras se reparten */}
+              <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || !hasDealtInitialCards || isPaused} isHandCard className="match-card" />
+            </motion.div>
           ))}
         </div>
       </div>
