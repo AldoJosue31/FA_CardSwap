@@ -14,6 +14,7 @@ import type { CardData } from '../gameData';
 import goalSoundFile from '../assets/goal.mp3'; 
 import kickSoundFile from '../assets/kick.mp3'; 
 import cardSoundFile from '../assets/card.m4a'; // Sonido de repartir cartas
+import stepSoundFile from '../assets/step.mp3'; // Sonido al colocar carta en la cancha
 
 const DIFFICULTIES = ['Fácil', 'Normal', 'Difícil', 'Avanzado'];
 
@@ -174,9 +175,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       const timeouts: NodeJS.Timeout[] = [];
 
       if (sfxVolume > 0) {
-        // Reproducir sonido inicial compensando latencias (-60ms) para que suene ANTES
         for (let i = 0; i < 4; i++) {
-          // Evitamos valores negativos en el primer índice usando Math.max
           const offsetDelay = Math.max(0, (i * 600) - 60); 
           const t = setTimeout(() => {
             const cardAudio = new Audio(cardSoundFile);
@@ -203,17 +202,16 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   }, [introState, hasDealtInitialCards]);
 
   // =========================================================================================
-  // NUEVO EFECTO: REPRODUCIR SONIDO AL ROBAR UNA CARTA NUEVA DURANTE LA PARTIDA
+  // EFECTO PARA REPRODUCIR SONIDO AL ROBAR UNA CARTA NUEVA DURANTE LA PARTIDA
   // =========================================================================================
   const prevHandSizeRef = useRef(playerHand?.length || 0);
 
   useEffect(() => {
-    if (hasDealtInitialCards && playerHand && playerHand.length > prevHandSizeRef.current) {
+    if (introState === 'none' && hasDealtInitialCards && playerHand && playerHand.length > prevHandSizeRef.current) {
       const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
       const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
 
       if (sfxVolume > 0) {
-        // Reducido a 0ms (Inmediato) para que no suene tarde al robar carta
         const cardAudio = new Audio(cardSoundFile);
         cardAudio.volume = sfxVolume;
         cardAudio.play().catch(e => console.log("Audio de nueva carta bloqueado:", e));
@@ -221,8 +219,61 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
     }
     
     prevHandSizeRef.current = playerHand?.length || 0;
-  }, [playerHand, hasDealtInitialCards]);
+  }, [playerHand, hasDealtInitialCards, introState]);
 
+  // =========================================================================================
+  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (JUGADOR)
+  // =========================================================================================
+  const prevPlayerBoardCardRef = useRef<string | null>(playerBoardCard ? playerBoardCard.id : null);
+
+  useEffect(() => {
+    // Si la carta cambió de ID respecto a la anterior que estaba en la mesa
+    if (playerBoardCard && playerBoardCard.id !== prevPlayerBoardCardRef.current) {
+      prevPlayerBoardCardRef.current = playerBoardCard.id; // Bloqueo de ID para que no suene doble jamás
+      
+      // Solo reproducimos si la intro ya acabó, evitando sonidos fantasma durante el reparto
+      if (hasDealtInitialCards && introState === 'none') {
+        setTimeout(() => {
+          const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+          const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+          if (sfxVolume > 0) {
+            const stepAudio = new Audio(stepSoundFile);
+            stepAudio.volume = sfxVolume;
+            stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
+          }
+        }, 120); 
+      }
+    } else if (!playerBoardCard) {
+      // Se limpió la mesa, reiniciamos memoria
+      prevPlayerBoardCardRef.current = null;
+    }
+  }, [playerBoardCard?.id, hasDealtInitialCards, introState]);
+
+  // =========================================================================================
+  // EFECTO PARA REPRODUCIR SONIDO AL COLOCAR CARTA EN EL PLACEHOLDER (RIVAL)
+  // =========================================================================================
+  const prevBotBoardCardRef = useRef<string | null>(botBoardCard ? botBoardCard.id : null);
+
+  useEffect(() => {
+    // Si la carta del rival cambió de ID
+    if (botBoardCard && botBoardCard.id !== prevBotBoardCardRef.current) {
+      prevBotBoardCardRef.current = botBoardCard.id; 
+      
+      if (hasDealtInitialCards && introState === 'none') {
+        setTimeout(() => {
+          const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
+          const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
+          if (sfxVolume > 0) {
+            const stepAudio = new Audio(stepSoundFile);
+            stepAudio.volume = sfxVolume;
+            stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
+          }
+        }, 120); 
+      }
+    } else if (!botBoardCard) {
+      prevBotBoardCardRef.current = null;
+    }
+  }, [botBoardCard?.id, hasDealtInitialCards, introState]);
 
   // =========================================================================================
   // EFECTO PARA REPRODUCIR LOS SONIDOS DE PATADA Y GOL
@@ -470,7 +521,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
                 delay: introState === 'none' && !hasDealtInitialCards ? index * 0.6 : 0 
               }}
             >
-              <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || isPaused} isHandCard className="match-card" />
+              {/* Bloqueo adicional para evitar clicks accidentales mientras se reparten */}
+              <Card card={card} onClick={() => playCard(card)} disabled={!activeGame.canPlay || !hasDealtInitialCards || isPaused} isHandCard className="match-card" />
             </motion.div>
           ))}
         </div>
