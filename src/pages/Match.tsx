@@ -40,7 +40,6 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   // =========================================================================================
   // INTERCEPCIÓN VISUAL: Retener cartas en la mano si el Bot (o jugador) tira antes de terminar de repartir
   // =========================================================================================
-  // Si el bot tira su carta muy rápido, la forzamos a quedarse visualmente en su mano hasta que acabe la intro
   const displayBotHand = (!hasDealtInitialCards && botBoardCard) ? [...botHand, botBoardCard] : botHand;
   const displayBotBoardCard = hasDealtInitialCards ? botBoardCard : null;
 
@@ -183,7 +182,7 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
       const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
       const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
       
-      const timeouts: NodeJS.Timeout[] = [];
+      const timeouts: ReturnType<typeof setTimeout>[] = [];
 
       if (sfxVolume > 0) {
         for (let i = 0; i < 4; i++) {
@@ -238,12 +237,10 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const prevPlayerBoardCardRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
 
-    // Solo verificamos la carta interceptada visualmente (displayPlayerBoardCard)
-    // Esto garantiza que es físicamente imposible que suene antes de que acabe la animación
     if (displayPlayerBoardCard && displayPlayerBoardCard.id !== prevPlayerBoardCardRef.current) {
-      prevPlayerBoardCardRef.current = displayPlayerBoardCard.id; // Bloqueo anti duplicados
+      prevPlayerBoardCardRef.current = displayPlayerBoardCard.id; 
       
       const savedSfxVol = localStorage.getItem('futarena_sfx_volume');
       const sfxVolume = savedSfxVol !== null ? parseFloat(savedSfxVol) : 0.8;
@@ -253,10 +250,9 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
           const stepAudio = new Audio(stepSoundFile);
           stepAudio.volume = sfxVolume;
           stepAudio.play().catch(e => console.log("Audio de colocar carta bloqueado:", e));
-        }, 120); // Empata milimétricamente con la caída visual del resorte de framer-motion
+        }, 120); 
       }
     } else if (!displayPlayerBoardCard) {
-      // Mesa limpia al cambiar el turno, reseteamos para el próximo
       prevPlayerBoardCardRef.current = null;
     }
 
@@ -271,9 +267,8 @@ export default function Match({ difficulty, onlineSession, onReturnToMenu, onNex
   const prevBotBoardCardRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
 
-    // Utilizamos displayBotBoardCard, por lo que si el bot tiró rápido, el audio "espera" obedientemente
     if (displayBotBoardCard && displayBotBoardCard.id !== prevBotBoardCardRef.current) {
       prevBotBoardCardRef.current = displayBotBoardCard.id; 
       
